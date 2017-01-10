@@ -26,7 +26,7 @@ var (
 	gitCommit string // Git SHA1 commit hash of the release (set via linker flags)
 	app = utils.NewApp(gitCommit, "Livecoin")
 	testBootNodes = []string {
-		"enode://acfd80b97a9b51668ebbbfaa919fda6bb68e3e1d4e83587270b3ac5e027e455d8655da2abcd1b55db65fbc03727e2d1d30d74c6efd4b853e27729fcb2425c00d@127.0.0.1:30501",
+		"enode://c5bf45b4acbe4d4fc6c06758ce642862396abdf0c7a18bce9bbf1d709af67f9b94f8de50d4d45600c8f5d1db4dfd2d2708648b922cd7bc76eaf74ef4f8d85e99@127.0.0.1:63450",
 	}
 )
 
@@ -53,6 +53,7 @@ func init() {
 		LivecoinPortFlag,
 		LivecoinNetworkIdFlag,
 		utils.DataDirFlag,
+		utils.ListenPortFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Before = func(ctx *cli.Context) error {
@@ -82,6 +83,7 @@ func livecoinfunc(ctx *cli.Context) error {
 
 	// Add bootnodes as initial peers
 	if (networkId == 65) {
+		glog.V(logger.Info).Infoln("In network 65, injecting bootnodes")
 		injectBootnodes(stack.Server(), testBootNodes)
 	}
 

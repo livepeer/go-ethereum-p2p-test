@@ -35,17 +35,50 @@ func (self *Livecoin) Start(net *p2p.Server) error {
 }
 
 func (self *Livecoin) Stop() error {
-	self.running <- false
 	return nil
 }
 
 func (self *Livecoin) APIs() []rpc.API {
-	return []rpc.API{}
+	return []rpc.API{
+		{
+			Namespace: "lvc",
+			Version: "0.1",
+			Service: &Info{},
+			Public: true,
+		},
+	}
 }
 
 func (self *Livecoin) Protocols() []p2p.Protocol {
-	return []p2p.Protocol{}
+	proto, _ := Lvc()
+	return []p2p.Protocol{proto}
 }
+
+
+const (
+	ProtocolVersion            = 0
+	ProtocolLength     = uint64(8)
+	ProtocolMaxMsgSize = 10 * 1024 * 1024
+	ProtocolNetworkId          = 65
+)
+
+// The main protocol entrypoint. The Run: function will get invoked when peers connect
+func Lvc() (p2p.Protocol, error) {
+	return p2p.Protocol{
+		Name: "lvc",
+		Version: ProtocolVersion,
+		Length: ProtocolLength,
+		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+			return runLvc(p, rw)
+		},
+	}, nil
+}
+
+func runLvc(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+	glog.V(logger.Info).Infoln("Got a new peer:", p.LocalAddr(), p.RemoteAddr())
+	return nil
+}
+	
 
 func (self *Livecoin) livecoinLoop() {
 	for {
@@ -65,4 +98,11 @@ func (self *Livecoin) longloop() {
 		self.running <- true
 	}
 	self.quit <- true
+}
+
+type Info struct {
+}
+
+func (self *Info) Add() (int, error) {
+	return 0, nil
 }
