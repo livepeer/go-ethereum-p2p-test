@@ -64,6 +64,7 @@ const (
 
 // The main protocol entrypoint. The Run: function will get invoked when peers connect
 func Lvc() (p2p.Protocol, error) {
+	glog.V(logger.Info).Infoln("Adding the Lvc protocol")
 	return p2p.Protocol{
 		Name: "lvc",
 		Version: ProtocolVersion,
@@ -75,7 +76,7 @@ func Lvc() (p2p.Protocol, error) {
 }
 
 func runLvc(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-	glog.V(logger.Info).Infoln("Got a new peer:", p.LocalAddr(), p.RemoteAddr())
+	glog.V(logger.Info).Infoln("Got a new peer:", p.String())
 	return nil
 }
 	
@@ -93,8 +94,8 @@ func (self *Livecoin) livecoinLoop() {
 }
 
 func (self *Livecoin) longloop() {
-	for i:= 0; i < 100; i++ {
-		time.Sleep(1 * time.Second)
+	for i:= 0; i < 2; i++ {
+		time.Sleep(50 * time.Second)
 		self.running <- true
 	}
 	self.quit <- true

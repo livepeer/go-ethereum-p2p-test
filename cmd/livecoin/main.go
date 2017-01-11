@@ -27,6 +27,8 @@ var (
 	app = utils.NewApp(gitCommit, "Livecoin")
 	testBootNodes = []string {
 		"enode://c5bf45b4acbe4d4fc6c06758ce642862396abdf0c7a18bce9bbf1d709af67f9b94f8de50d4d45600c8f5d1db4dfd2d2708648b922cd7bc76eaf74ef4f8d85e99@127.0.0.1:63450",
+		"enode://fe58c4c9f06eb959d354f76eb0296fec6aca07df518f811ffadeeffd2a707df892691608d4ad868685abf7e6858a1ca3ca175c15913029c366e845bb333a1751@127.0.0.1:63450",
+		"enode://9f97fa65724b30b4b7f2e96b59cf03cbd92e028f9c511b3664004a2ab559c373b1ac278ab35e8bb52a7b26cc38b4d50e7bf0af5741ea0af13d723c890c99007c@127.0.0.1:30305",
 	}
 )
 
@@ -54,6 +56,8 @@ func init() {
 		LivecoinNetworkIdFlag,
 		utils.DataDirFlag,
 		utils.ListenPortFlag,
+		utils.NetworkIdFlag,
+		utils.MaxPeersFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Before = func(ctx *cli.Context) error {
