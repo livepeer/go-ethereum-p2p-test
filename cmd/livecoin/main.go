@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/livecoin"
+	"github.com/ethereum/go-ethereum/livecoin/network"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -40,7 +41,7 @@ var (
 	LivecoinNetworkIdFlag = cli.IntFlag{
 		Name: "livecoinnetworkid",
 		Usage: "Network identifier (integer, default 65=livecoin privatenet)",
-		Value: livecoin.NetworkId,
+		Value: network.NetworkId,
 	}
 )
 

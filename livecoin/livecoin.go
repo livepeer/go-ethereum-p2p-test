@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/livecoin/network"
 )
 
 type Livecoin struct {
@@ -50,36 +51,9 @@ func (self *Livecoin) APIs() []rpc.API {
 }
 
 func (self *Livecoin) Protocols() []p2p.Protocol {
-	proto, _ := Lvc()
+	proto, _ := network.Lvc()
 	return []p2p.Protocol{proto}
-}
-
-
-const (
-	ProtocolVersion            = 0
-	ProtocolLength     = uint64(8)
-	ProtocolMaxMsgSize = 10 * 1024 * 1024
-	ProtocolNetworkId          = 65
-)
-
-// The main protocol entrypoint. The Run: function will get invoked when peers connect
-func Lvc() (p2p.Protocol, error) {
-	glog.V(logger.Info).Infoln("Adding the Lvc protocol")
-	return p2p.Protocol{
-		Name: "lvc",
-		Version: ProtocolVersion,
-		Length: ProtocolLength,
-		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-			return runLvc(p, rw)
-		},
-	}, nil
-}
-
-func runLvc(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-	glog.V(logger.Info).Infoln("Got a new peer:", p.String())
-	return nil
-}
-	
+}	
 
 func (self *Livecoin) livecoinLoop() {
 	for {

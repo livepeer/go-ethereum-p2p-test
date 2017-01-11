@@ -1,4 +1,4 @@
-package livecoin
+package network
 
 const (
 	Version   = 0
