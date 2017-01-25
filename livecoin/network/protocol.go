@@ -39,7 +39,7 @@ func Lvc() (p2p.Protocol, error) {
 }
 
 func runLvc(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-	glog.V(logger.Info).Infoln("Got a new peer:", p.String())
+	glog.V(logger.Info).Infoln("Got a new peer:", p.String(), p.LocalAddr(), p.RemoteAddr())
 
 	self := &lvc{
 		peer: p,

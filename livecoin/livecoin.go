@@ -30,7 +30,7 @@ func NewLivecoin() (self *Livecoin, err error) {
 
 func (self *Livecoin) Start(net *p2p.Server) error {
 	glog.V(logger.Info).Infoln("Starting the Livecoin Service")
-	go self.livecoinLoop()
+	go self.livecoinLoop(net)
 	go self.longloop()
 	return nil
 }
@@ -55,12 +55,16 @@ func (self *Livecoin) Protocols() []p2p.Protocol {
 	return []p2p.Protocol{proto}
 }	
 
-func (self *Livecoin) livecoinLoop() {
+func (self *Livecoin) livecoinLoop(net *p2p.Server) {
 	for {
 		glog.V(logger.Info).Infoln("In the livecoinloop")
 		select {
 		case <- self.running:
-			glog.V(logger.Info).Infoln("Livecoin says", self.msg)
+			//glog.V(logger.Info).Infoln("Livecoin says", self.msg, net.Peers())
+			glog.V(logger.Info).Infoln("Peers:")
+			for _, val := range net.Peers() {
+				glog.V(logger.Info).Infoln(val)
+			}
 		case <- self.quit:
 			return
 		}
@@ -68,8 +72,8 @@ func (self *Livecoin) livecoinLoop() {
 }
 
 func (self *Livecoin) longloop() {
-	for i:= 0; i < 2; i++ {
-		time.Sleep(50 * time.Second)
+	for i:= 0; i < 100; i++ {
+		time.Sleep(2 * time.Second)
 		self.running <- true
 	}
 	self.quit <- true
@@ -78,6 +82,6 @@ func (self *Livecoin) longloop() {
 type Info struct {
 }
 
-func (self *Info) Add() (int, error) {
-	return 0, nil
+func (self *Info) Add(x, y int) (int, error) {
+	return x + y, nil
 }
