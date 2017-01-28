@@ -116,6 +116,10 @@ var (
 		Name:  "corsdomain",
 		Usage: "Domain on which to send Access-Control-Allow-Origin header (multiple domains can be supplied separated by a ',')",
 	}
+	RTMPFlag = cli.BoolFlag{
+		Name:  "rtmp",
+		Usage: "Enable RTMP streaming endpoint",
+	}
 )
 
 func init() {
@@ -189,6 +193,8 @@ Prints the swarm hash of file or directory.
 		SwarmRecursiveUploadFlag,
 		SwarmWantManifestFlag,
 		SwarmUploadDefaultPath,
+		// streaming flags
+		RTMPFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Before = func(ctx *cli.Context) error {
@@ -249,7 +255,9 @@ func registerBzzService(ctx *cli.Context, stack *node.Node) {
 	if bzzdir == "" {
 		bzzdir = stack.InstanceDir()
 	}
-	bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, ctx.GlobalUint64(SwarmNetworkIdFlag.Name))
+
+	// fmt.Println("RTMP: ", ctx.Bool("rtmp"))
+	bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, ctx.GlobalUint64(SwarmNetworkIdFlag.Name), ctx.Bool("rtmp"))
 	if err != nil {
 		utils.Fatalf("unable to configure swarm: %v", err)
 	}

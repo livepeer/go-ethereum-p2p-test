@@ -54,11 +54,12 @@ type Config struct {
 	BzzKey    string
 	EnsRoot   common.Address
 	NetworkId uint64
+	EnableRTMP bool
 }
 
 // config is agnostic to where private key is coming from
 // so managing accounts is outside swarm and left to wrappers
-func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey, networkId uint64) (self *Config, err error) {
+func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey, networkId uint64, enableRtmp bool) (self *Config, err error) {
 	address := crypto.PubkeyToAddress(prvKey.PublicKey) // default beneficiary address
 	dirpath := filepath.Join(path, "bzz-"+common.Bytes2Hex(address.Bytes()))
 	err = os.MkdirAll(dirpath, os.ModePerm)
@@ -85,6 +86,7 @@ func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey, n
 		NetworkId:     networkId,
 	}
 	data, err = ioutil.ReadFile(confpath)
+	
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return
@@ -99,6 +101,7 @@ func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey, n
 	}
 	// file exists, deserialise
 	err = json.Unmarshal(data, self)
+
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse config: %v", err)
 	}
@@ -115,6 +118,7 @@ func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey, n
 		self.EnsRoot = ensRootAddress
 	}
 
+	self.EnableRTMP = enableRtmp
 	return
 }
 
