@@ -181,6 +181,7 @@ func (c *client) uploadManifest(m manifest) (string, error) {
 	return c.postRaw("application/json", int64(len(jsm)), ioutil.NopCloser(bytes.NewReader(jsm)))
 }
 
+//Post to the HTTP swarm server
 func (c *client) postRaw(mimetype string, size int64, body io.ReadCloser) (string, error) {
 	req, err := http.NewRequest("POST", c.api+"/bzzr:/", body)
 	if err != nil {

@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/swarm/api"
 	httpapi "github.com/ethereum/go-ethereum/swarm/api/http"
+	rtmpapi "github.com/ethereum/go-ethereum/swarm/api/rtmp"
 	"github.com/ethereum/go-ethereum/swarm/network"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"golang.org/x/net/context"
@@ -157,6 +158,7 @@ Start is called when the stack is started
 */
 // implements the node.Service interface
 func (self *Swarm) Start(net *p2p.Server) error {
+
 	connectPeer := func(url string) error {
 		node, err := discover.ParseNode(url)
 		if err != nil {
@@ -192,6 +194,11 @@ func (self *Swarm) Start(net *p2p.Server) error {
 	if self.config.Port != "" {
 		addr := ":" + self.config.Port
 		go httpapi.StartHttpServer(self.api, &httpapi.Server{Addr: addr, CorsString: self.corsString})
+	}
+
+	if self.config.EnableRTMP {
+		fmt.Println("Starting RTMP Server...")
+		rtmpapi.StartRtmpServer()
 	}
 
 	glog.V(logger.Debug).Infof("Swarm http proxy started on port: %v", self.config.Port)
@@ -287,7 +294,7 @@ func NewLocalSwarm(datadir, port string) (self *Swarm, err error) {
 		return
 	}
 
-	config, err := api.NewConfig(datadir, common.Address{}, prvKey, network.NetworkId)
+	config, err := api.NewConfig(datadir, common.Address{}, prvKey, network.NetworkId, false)
 	if err != nil {
 		return
 	}
