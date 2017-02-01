@@ -8,62 +8,62 @@
 package rtmp
 
 import (
-    "github.com/nareix/joy4/av/avutil"
-    "github.com/nareix/joy4/av/pubsub"
-    "github.com/nareix/joy4/format"
-    "github.com/nareix/joy4/format/rtmp"
-    "sync"
+	"sync"
+
+	"github.com/nareix/joy4/av/avutil"
+	"github.com/nareix/joy4/av/pubsub"
+	"github.com/nareix/joy4/format"
+	joy4rtmp "github.com/nareix/joy4/format/rtmp"
 )
 
 func init() {
-    format.RegisterAll()
+	format.RegisterAll()
 }
 
 func StartRtmpServer() {
-    server := &rtmp.Server{}
+	server := &joy4rtmp.Server{}
 
-    l := &sync.RWMutex{}
-    type Wrapper struct {
-        que *pubsub.Queue
-    }
+	l := &sync.RWMutex{}
+	type Wrapper struct {
+		que *pubsub.Queue
+	}
 
-    channels := map[string]*Wrapper{}
+	channels := map[string]*Wrapper{}
 
-    server.HandlePlay = func(conn *rtmp.Conn) {
-        l.RLock()
-        ch := channels[conn.URL.Path]
-        l.RUnlock()
+	server.HandlePlay = func(conn *joy4rtmp.Conn) {
+		l.RLock()
+		ch := channels[conn.URL.Path]
+		l.RUnlock()
 
-        if ch != nil {
-            cursor := ch.que.Latest()
-            avutil.CopyFile(conn, cursor)
-        }
-    }
+		if ch != nil {
+			cursor := ch.que.Latest()
+			avutil.CopyFile(conn, cursor)
+		}
+	}
 
-    server.HandlePublish = func(conn *rtmp.Conn) {
-        l.Lock()
-        ch := channels[conn.URL.Path]
+	server.HandlePublish = func(conn *joy4rtmp.Conn) {
+		l.Lock()
+		ch := channels[conn.URL.Path]
 
-        if ch == nil {
-            ch = &Wrapper{}
-            ch.que = pubsub.NewQueue()
-            channels[conn.URL.Path] = ch
-        } else {
-            ch = nil
-        }
-        l.Unlock()
-        if (ch == nil) {
-            return
-        }
+		if ch == nil {
+			ch = &Wrapper{}
+			ch.que = pubsub.NewQueue()
+			channels[conn.URL.Path] = ch
+		} else {
+			ch = nil
+		}
+		l.Unlock()
+		if ch == nil {
+			return
+		}
 
-        avutil.CopyFile(ch.que, conn)
+		avutil.CopyFile(ch.que, conn)
 
-        l.Lock()
-        delete(channels, conn.URL.Path)
-        l.Unlock()
-        ch.que.Close()
-    }
+		l.Lock()
+		delete(channels, conn.URL.Path)
+		l.Unlock()
+		ch.que.Close()
+	}
 
-    server.ListenAndServe()
+	server.ListenAndServe()
 }
-
