@@ -100,14 +100,14 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 			Packet:        pkt,
 		}
 
-		storage.TestChunkEncoding(*chunk)
+		// storage.TestChunkEncoding(*chunk)
 		//This is the real code block
-		// select {
-		// case streamer.SrcVideoChan <- chunk:
-		// 	fmt.Println("sent video chunk")
-		// default:
-		// 	// fmt.Print(".")
-		// }
+		select {
+		case streamer.SrcVideoChan <- chunk:
+			fmt.Println("sent video chunk")
+		default:
+			// fmt.Print(".")
+		}
 
 		//Just testing to see channels work with video packets
 		// byteArr := storage.VideoChunkToByteArr(*chunk)
@@ -116,13 +116,13 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 		// fmt.Println("bytearr: %v", byteArr)
 		// fmt.Println("newC header: %v", newC.HeaderStreams)
 
-		select {
-		case streamer.DstVideoChan <- chunk:
-			fmt.Println("sent video chunk to dstchan (just to exp)")
-		default:
-			//The channel is full.  We are just dropping packets here.
-			// fmt.Print(".")
-		}
+		// select {
+		// case streamer.DstVideoChan <- chunk:
+		// 	fmt.Println("sent video chunk to dstchan (just to exp)")
+		// default:
+		//The channel is full.  We are just dropping packets here.
+		// fmt.Print(".")
+		// }
 	}
 	return
 }

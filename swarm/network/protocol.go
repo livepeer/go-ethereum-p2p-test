@@ -246,7 +246,7 @@ func (self *bzz) handle() error {
 		if err := msg.Decode(&req); err != nil {
 			return err
 		}
-		fmt.Println("Protocol got streamRequestMsg: ", req)
+		// fmt.Println("Protocol got streamRequestMsg: ", req)
 
 		if req.Id == 100 {
 			fmt.Println("Got ViewRequest")
@@ -262,30 +262,20 @@ func (self *bzz) handle() error {
 				peers := self.hive.getPeers(key, 1)
 				fmt.Println("# of peers in forwarder: ", len(peers))
 				for _, p := range peers {
-					// fmt.Println("Streaming msg in forwarder to: ", p.Addr)
+					fmt.Println("Streaming video chunk in protocol to: ", p.Addr)
 					p.stream(msg)
 				}
 			}
-			// for videoChunk := range self.streamer.SrcVideoChan {
-			// fmt.Println("Reading src video chunk: ", videoChunk.ID)
-			// if len(peers) > 0 {
-			// 	fmt.Println("Peer size: ", len(peers))
-			// }
-			// fmt.Println(videoChunk.Packet.IsKeyFrame)
-			// msg := &streamRequestMsgData{
-			// 	Key: []byte("teststream"),
-			// 	// SData: videoChunk,
-			// 	// from:  self,
-			// }
-
-			// if err := peers[0].stream(msg); err != nil {
-			// 	return self.protoError(ErrDecode, "<- %v: %v", msg, err)
-			// }
-			// }
 		} else {
 			fmt.Println("Got video chunk")
-			//TODO: Get the chunks to the endpoint so we can view it! SO CLOSE!
-			//Write req.SData to self.streamer.dstVideoChunkC
+			chunk := storage.ByteArrInVideoChunk(req.SData)
+
+			select {
+			case self.streamer.DstVideoChan <- &chunk:
+				// fmt.Println("sent video chunk")
+			default:
+				// fmt.Print(".")
+			}
 		}
 
 	case storeRequestMsg:
@@ -298,8 +288,6 @@ func (self *bzz) handle() error {
 			return self.protoError(ErrDecode, "<- %v: Data too short (%v)", msg)
 		}
 
-		// fmt.Println("Protocol got storeRequestMsg")
-		// debug.PrintStack()
 		// last Active time is set only when receiving chunks
 		self.lastActive = time.Now()
 		glog.V(logger.Detail).Infof("incoming store request: %s", req.String())

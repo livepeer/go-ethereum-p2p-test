@@ -143,10 +143,7 @@ func (self *Hive) Start(id discover.NodeID, listenAddr func() string, connectPee
 				return
 			}
 			node, need, proxLimit := self.kad.Suggest()
-			fmt.Println("# of active nodes in hive: ", self.kad.Count())
-			// self.kad.FindClosest()
 
-			// fmt.Println("Node, Need, ProxLimit", node, need, proxLimit)
 			if node != nil && len(node.Url) > 0 {
 				glog.V(logger.Detail).Infof("call known bee %v", node.Url)
 				// enode or any lower level connection address is unnecessary in future
