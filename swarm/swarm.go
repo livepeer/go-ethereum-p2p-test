@@ -207,7 +207,7 @@ func (self *Swarm) Start(net *p2p.Server) error {
 		//StartRTMPServer spins up a go routine internally.  It would be good to know the convention
 		//around this.  Go routines are spun up all over the place in this codebase, it's a little tough
 		//to understand whether you are in the main thread sometimes (or does that just not matter in Go?)
-		rtmpapi.StartRtmpServer(self.config.RTMPPort, self.streamer, self.cloud)
+		go rtmpapi.StartRtmpServer(self.config.RTMPPort, self.streamer, self.cloud)
 	}
 
 	glog.V(logger.Debug).Infof("Swarm http proxy started on port: %v", self.config.Port)
