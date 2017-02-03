@@ -3,35 +3,35 @@
 package network
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"math/rand"
 	"time"
-	
-	"github.com/ethereum/go-ethereum/p2p"
+
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/p2p"
 )
 
 const (
-	ProtocolVersion            = 0
+	ProtocolVersion    = 0
 	ProtocolLength     = uint64(8)
 	ProtocolMaxMsgSize = 10 * 1024 * 1024
-	ProtocolNetworkId          = 65
+	ProtocolNetworkId  = 65
 )
 
 type lvc struct {
-	peer     *p2p.Peer
-	rw       p2p.MsgReadWriter
+	peer *p2p.Peer
+	rw   p2p.MsgReadWriter
 }
 
 // The main protocol entrypoint. The Run: function will get invoked when peers connect
 func Lvc() (p2p.Protocol, error) {
 	glog.V(logger.Info).Infoln("Adding the Lvc protocol")
 	return p2p.Protocol{
-		Name: "lvc",
+		Name:    "lvc",
 		Version: ProtocolVersion,
-		Length: ProtocolLength,
+		Length:  ProtocolLength,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			return runLvc(p, rw)
 		},
@@ -43,7 +43,7 @@ func runLvc(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 
 	self := &lvc{
 		peer: p,
-		rw: rw,
+		rw:   rw,
 	}
 
 	// Do the one time handshake
@@ -62,7 +62,7 @@ func runLvc(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -101,7 +101,7 @@ func (self *lvc) handleAllMessages() error {
 func (self *lvc) handleHandshake() (err error) {
 	greeting := fmt.Sprintf("Welcome to my house: %s", self.peer)
 	handshake := &handshakeMsgData{
-		ID: "LIVE",
+		ID:       "LIVE",
 		Greeting: greeting,
 	}
 
@@ -125,18 +125,18 @@ func (self *lvc) handleHandshake() (err error) {
 	if err := msg.Decode(&theirHandshake); err != nil {
 		return err
 	}
-	
+
 	glog.V(logger.Info).Infof("Just received a livecoin handshake and the message was", theirHandshake.Greeting)
 	return nil
 }
 
 func (self *lvc) sendRandomMessages() error {
 	rand.Seed(time.Now().UnixNano())
-	
+
 	for i := 0; i < 25; i++ {
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			msgData := &publishVideoMsgData{
-				ID: uint64(i),
+				ID:  uint64(i),
 				URL: "http://youtube.com/videos/23",
 			}
 			err := p2p.Send(self.rw, publishVideoMsg, msgData)
@@ -145,7 +145,7 @@ func (self *lvc) sendRandomMessages() error {
 			}
 		} else {
 			msgData := &requestVideoMsgData{
-				ID: uint64(i),
+				ID:  uint64(i),
 				URL: "http://vimeo.com/videos/3888",
 			}
 			err := p2p.Send(self.rw, requestVideoMsg, msgData)

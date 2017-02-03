@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	handshakeMsg     = iota
+	handshakeMsg = iota
 	publishVideoMsg
 	requestVideoMsg
 )
