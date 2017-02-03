@@ -112,10 +112,10 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 			if err == io.EOF {
 				chunk := &storage.VideoChunk{
 					ID:            300,
-					HeaderStreams: streams,
+					HeaderStreams: headerStreams,
 					Packet:        pkt,
 				}
-				streamer.SrcVideoChan <- chunk
+				stream.SrcVideoChan <- chunk
 				fmt.Println("Done with packet reading: %s", err)
 				break
 			}
@@ -124,7 +124,7 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 
 		chunk := &storage.VideoChunk{
 			ID:            200,
-			HeaderStreams: streams,
+			HeaderStreams: headerStreams,
 			Packet:        pkt,
 		}
 
