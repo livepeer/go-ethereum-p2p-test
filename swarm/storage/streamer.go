@@ -4,26 +4,69 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	//"errors"
 
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/codec/aacparser"
 	"github.com/nareix/joy4/codec/h264parser"
+
+	"github.com/ethereum/go-ethereum/p2p/discover"
 )
 
-//The streamer brokers the video streams.
-type Streamer struct {
+// The ID for a stream, consists of the concatenation of the
+// NodeID and a unique ID string of the
+type StreamID string
+
+func MakeStreamID(nodeID discover.NodeID, id string) StreamID {
+	return StreamID(nodeID.String() + id)
+}
+
+// A stream represents one stream
+type Stream struct {
 	SrcVideoChan chan *VideoChunk
 	DstVideoChan chan *VideoChunk
 	ByteArrChan  chan []byte
+	exists       bool
+}
+
+// The streamer brookers the video streams
+type Streamer struct {
+	Streams map[StreamID]*Stream
 }
 
 func NewStreamer() (*Streamer, error) {
 	return &Streamer{
+		Streams: make(map[StreamID]*Stream),
+	}, nil
+}
+
+func (self *Streamer) AddStream(nodeID discover.NodeID, id string) (stream *Stream, err error) {
+	streamID := MakeStreamID(nodeID, id)
+
+	//if self.Streams[streamID].exists == true {
+	//	return nil, errors.New("Stream with this ID already exists")
+	//}
+
+	self.Streams[streamID] = &Stream{
 		SrcVideoChan: make(chan *VideoChunk, 10),
 		DstVideoChan: make(chan *VideoChunk, 10),
 		ByteArrChan:  make(chan []byte),
-	}, nil
+	}
+
+	return self.Streams[streamID], nil
 }
+
+func (self *Streamer) GetStream(nodeID discover.NodeID, id string) (stream *Stream, err error) {
+	return self.Streams[MakeStreamID(nodeID, id)], nil
+}
+
+// func NewStreamer() (*Streamer, error) {
+// 	return &Streamer{
+// 		SrcVideoChan: make(chan *VideoChunk, 10),
+// 		DstVideoChan: make(chan *VideoChunk, 10),
+// 		ByteArrChan:  make(chan []byte),
+// 	}, nil
+// }
 
 func VideoChunkToByteArr(chunk VideoChunk) []byte {
 	var buf bytes.Buffer

@@ -74,9 +74,10 @@ func (self *statusMsgData) String() string {
 */
 
 type streamRequestMsgData struct {
-	Key   storage.Key
-	SData []byte
-	Id    uint64
+	OriginNode discover.NodeID
+	StreamID   string
+	SData      []byte
+	Id         uint64
 
 	// isViewRequest  bool
 	requestTimeout *time.Time

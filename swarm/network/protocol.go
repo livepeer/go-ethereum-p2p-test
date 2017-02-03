@@ -248,14 +248,26 @@ func (self *bzz) handle() error {
 		}
 		// fmt.Println("Protocol got streamRequestMsg: ", req)
 
+		// Get the stream object out of the streamer
+		originNode := req.OriginNode
+		streamID := req.StreamID
+
+		stream, err := self.streamer.GetStream(originNode, streamID)
+		if err != nil {
+			return err
+		}
+
 		if req.Id == 100 {
 			fmt.Println("Got ViewRequest")
+
 			//TODO: Get the chunks streaming back to the peer
-			for videoChunk := range self.streamer.SrcVideoChan {
+			for videoChunk := range stream.SrcVideoChan {
 				key := []byte("teststream")
 				msg := &streamRequestMsgData{
-					SData: storage.VideoChunkToByteArr(*videoChunk),
-					Key:   key,
+					OriginNode: originNode,
+					StreamID:   streamID,
+					SData:      storage.VideoChunkToByteArr(*videoChunk),
+					Id:         200,
 				}
 
 				peers := self.hive.getPeers(key, 1)
@@ -270,7 +282,7 @@ func (self *bzz) handle() error {
 			chunk := storage.ByteArrInVideoChunk(req.SData)
 
 			select {
-			case self.streamer.DstVideoChan <- &chunk:
+			case stream.DstVideoChan <- &chunk:
 				// fmt.Println("sent video chunk")
 			default:
 				// fmt.Print(".")
