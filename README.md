@@ -1,3 +1,11 @@
+## LivePeer
+To run the node with video streaming, use the --rtmp flag to start the swarm nodes.  For example:
+`go run cmd/swarm/*.go --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --verbosity 4 --maxpeers 3 --port 30402 --bzznetworkid 412 --rtmp 1935`
+
+Set up 2 swarm nodes, make sure they are talking to each other, then stream into one node and play from the other.  For example:
+`ffmpeg -re -i bunny.mp4 -c copy -f flv rtmp://localhost:1935/movie`
+`ffplay rtmp://localhost:1936/movie`
+
 ## Ethereum Go
 
 Official golang implementation of the Ethereum protocol.
