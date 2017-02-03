@@ -17,6 +17,7 @@
 package network
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -106,6 +107,30 @@ func (self *forwarder) Store(chunk *storage.Chunk) {
 		}
 	}
 	glog.V(logger.Detail).Infof("forwarder.Store: sent to %v peers (chunk = %v)", n, chunk)
+}
+
+// Stream request - this is to request for a stream, not to do broadcast.  The chunks should arrive in protocol.go
+func (self *forwarder) Stream(key storage.Key) {
+
+	msg := &streamRequestMsgData{
+		Key: key,
+		Id:  100,
+		// VideoChunk: *chunk,
+	}
+
+	fmt.Println("Forwarding stream request: ", msg)
+	peers := self.hive.getPeers(key, 1)
+	fmt.Println("# of peers in forwarder: ", len(peers))
+	for _, p := range peers {
+		// fmt.Println("Streaming msg in forwarder to: ", p.Addr)
+		p.stream(msg)
+		// Deliver(p, msg, )
+	}
+	// 	SData:
+	// }
+	// for _, p := self.hive.getPeers(chunk.Key, 1) {
+
+	// }
 }
 
 // once a chunk is found deliver it to its requesters unless timed out

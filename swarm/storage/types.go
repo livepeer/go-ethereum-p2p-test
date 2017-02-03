@@ -26,6 +26,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/nareix/joy4/av"
 )
 
 type Hasher func() hash.Hash
@@ -153,6 +154,15 @@ type Chunk struct {
 
 func NewChunk(key Key, rs *RequestStatus) *Chunk {
 	return &Chunk{Key: key, Req: rs}
+}
+
+// VideoChunk is an encapsulation for video packets / headers.
+// It is used to pass video data around using the streamer
+type VideoChunk struct {
+	ID            int64
+	Key           Key
+	HeaderStreams []av.CodecData
+	Packet        av.Packet
 }
 
 /*

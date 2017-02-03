@@ -49,7 +49,7 @@ import (
 
 const (
 	Version            = 0
-	ProtocolLength     = uint64(8)
+	ProtocolLength     = uint64(9)
 	ProtocolMaxMsgSize = 10 * 1024 * 1024
 	NetworkId          = 3
 )
@@ -87,6 +87,7 @@ type bzz struct {
 	key        storage.Key          // baseaddress as storage.Key
 	storage    StorageHandler       // handler storage/retrieval related requests coming via the bzz wire protocol
 	hive       *Hive                // the logistic manager, peerPool, routing service and peer handler
+	streamer   *storage.Streamer    // broker for video streaming, provider of video channels
 	dbAccess   *DbAccess            // access to db storage counter and iterator for syncing
 	requestDb  *storage.LDBDatabase // db to persist backlog of deliveries to aid syncing
 	remoteAddr *peerAddr            // remote peers address
@@ -127,7 +128,7 @@ on each peer connection
 The Run function of the Bzz protocol class creates a bzz instance
 which will represent the peer for the swarm hive and all peer-aware components
 */
-func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64) (p2p.Protocol, error) {
+func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *storage.Streamer) (p2p.Protocol, error) {
 
 	// a single global request db is created for all peer connections
 	// this is to persist delivery backlog and aid syncronisation
@@ -143,7 +144,7 @@ func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess 
 		Version: Version,
 		Length:  ProtocolLength,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-			return run(requestDb, cloud, backend, hive, dbaccess, sp, sy, networkId, p, rw)
+			return run(requestDb, cloud, backend, hive, dbaccess, sp, sy, networkId, p, rw, streamer)
 		},
 	}, nil
 }
@@ -160,7 +161,7 @@ the main protocol loop that
  * whenever the loop terminates, the peer will disconnect with Subprotocol error
  * whenever handlers return an error the loop terminates
 */
-func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter) (err error) {
+func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter, streamer *storage.Streamer) (err error) {
 
 	self := &bzz{
 		storage:   depo,
@@ -179,6 +180,7 @@ func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook
 		swapEnabled: hive.swapEnabled,
 		syncEnabled: true,
 		NetworkId:   networkId,
+		streamer:    streamer,
 	}
 
 	// handle handshake
@@ -221,6 +223,7 @@ func (self *bzz) Drop() {
 // one cycle of the main forever loop that handles and dispatches incoming messages
 func (self *bzz) handle() error {
 	msg, err := self.rw.ReadMsg()
+	// fmt.Println("Got msg in protocol: ", msg)
 	glog.V(logger.Debug).Infof("<- %v", msg)
 	if err != nil {
 		return err
@@ -238,6 +241,52 @@ func (self *bzz) handle() error {
 		// handleStatus
 		glog.V(logger.Debug).Infof("Status message: %v", msg)
 		return self.protoError(ErrExtraStatusMsg, "")
+	case streamRequestMsg:
+		var req streamRequestMsgData
+		if err := msg.Decode(&req); err != nil {
+			return err
+		}
+		fmt.Println("Protocol got streamRequestMsg: ", req)
+
+		if req.Id == 100 {
+			fmt.Println("Got ViewRequest")
+			//TODO: Get the chunks streaming back to the peer
+			for videoChunk := range self.streamer.SrcVideoChan {
+				key := []byte("teststream")
+				msg := &streamRequestMsgData{
+					SData: storage.VideoChunkToByteArr(*videoChunk),
+					Id:    200,
+					Key:   key,
+				}
+
+				peers := self.hive.getPeers(key, 1)
+				fmt.Println("# of peers in forwarder: ", len(peers))
+				for _, p := range peers {
+					// fmt.Println("Streaming msg in forwarder to: ", p.Addr)
+					p.stream(msg)
+				}
+			}
+			// for videoChunk := range self.streamer.SrcVideoChan {
+			// fmt.Println("Reading src video chunk: ", videoChunk.ID)
+			// if len(peers) > 0 {
+			// 	fmt.Println("Peer size: ", len(peers))
+			// }
+			// fmt.Println(videoChunk.Packet.IsKeyFrame)
+			// msg := &streamRequestMsgData{
+			// 	Key: []byte("teststream"),
+			// 	// SData: videoChunk,
+			// 	// from:  self,
+			// }
+
+			// if err := peers[0].stream(msg); err != nil {
+			// 	return self.protoError(ErrDecode, "<- %v: %v", msg, err)
+			// }
+			// }
+		} else {
+			fmt.Println("Got video chunk")
+			//TODO: Get the chunks to the endpoint so we can view it! SO CLOSE!
+			//Write req.SData to self.streamer.dstVideoChunkC
+		}
 
 	case storeRequestMsg:
 		// store requests are dispatched to netStore
@@ -248,6 +297,9 @@ func (self *bzz) handle() error {
 		if len(req.SData) < 9 {
 			return self.protoError(ErrDecode, "<- %v: Data too short (%v)", msg)
 		}
+
+		// fmt.Println("Protocol got storeRequestMsg")
+		// debug.PrintStack()
 		// last Active time is set only when receiving chunks
 		self.lastActive = time.Now()
 		glog.V(logger.Detail).Infof("incoming store request: %s", req.String())
@@ -260,6 +312,7 @@ func (self *bzz) handle() error {
 		if err := msg.Decode(&req); err != nil {
 			return self.protoError(ErrDecode, "<- %v: %v", msg, err)
 		}
+		// fmt.Println("Protocol got retrieveRequestMsg")
 		req.from = &peer{bzz: self}
 		// if request is lookup and not to be delivered
 		if req.isLookup() {
@@ -487,6 +540,11 @@ func (self *bzz) store(req *storeRequestMsgData) error {
 	return self.send(storeRequestMsg, req)
 }
 
+// send streamRequestMsg
+func (self *bzz) stream(req *streamRequestMsgData) error {
+	return self.send(streamRequestMsg, req)
+}
+
 func (self *bzz) syncRequest() error {
 	req := &syncRequestMsgData{}
 	if self.hive.syncEnabled {
@@ -545,6 +603,7 @@ func (self *bzz) send(msg uint64, data interface{}) error {
 	glog.V(logger.Detail).Infof("-> %v: %v (%T) to %v", msg, data, data, self)
 	err := p2p.Send(self.rw, msg, data)
 	if err != nil {
+		fmt.Println("Error sending in protocol: ", err)
 		self.Drop()
 	}
 	return err

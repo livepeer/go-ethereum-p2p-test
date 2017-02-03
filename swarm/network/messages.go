@@ -42,6 +42,7 @@ const (
 	deliveryRequestMsg        // 0x06
 	unsyncedKeysMsg           // 0x07
 	paymentMsg                // 0x08
+	streamRequestMsg          // 0x09
 )
 
 /*
@@ -66,6 +67,21 @@ type statusMsgData struct {
 
 func (self *statusMsgData) String() string {
 	return fmt.Sprintf("Status: Version: %v, ID: %v, Addr: %v, Swap: %v, NetworkId: %v", self.Version, self.ID, self.Addr, self.Swap, self.NetworkId)
+}
+
+/*
+ stream requests are sent to peers who either has the stream source, or needs the stream data.
+ for now, Id=100 means it's a request, Id=200 means it's a data chunk
+*/
+
+type streamRequestMsgData struct {
+	Key   storage.Key
+	SData []byte
+	Id    uint64
+
+	// isViewRequest  bool
+	requestTimeout *time.Time
+	from           *peer
 }
 
 /*

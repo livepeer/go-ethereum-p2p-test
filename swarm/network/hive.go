@@ -143,7 +143,10 @@ func (self *Hive) Start(id discover.NodeID, listenAddr func() string, connectPee
 				return
 			}
 			node, need, proxLimit := self.kad.Suggest()
+			fmt.Println("# of active nodes in hive: ", self.kad.Count())
+			// self.kad.FindClosest()
 
+			// fmt.Println("Node, Need, ProxLimit", node, need, proxLimit)
 			if node != nil && len(node.Url) > 0 {
 				glog.V(logger.Detail).Infof("call known bee %v", node.Url)
 				// enode or any lower level connection address is unnecessary in future
@@ -225,8 +228,10 @@ func (self *Hive) addPeer(p *peer) error {
 		}
 	}()
 	glog.V(logger.Detail).Infof("hi new bee %v", p)
+	fmt.Println("adding new peer: ", p)
 	err := self.kad.On(p, loadSync)
 	if err != nil {
+		fmt.Println("Error adding peer: ", err)
 		return err
 	}
 	// self lookup (can be encoded as nil/zero key since peers addr known) + no id ()

@@ -55,6 +55,7 @@ type Swarm struct {
 	privateKey  *ecdsa.PrivateKey
 	corsString  string
 	swapEnabled bool
+	streamer    *storage.Streamer
 }
 
 type SwarmAPI struct {
@@ -73,6 +74,7 @@ func (self *Swarm) API() *SwarmAPI {
 
 // creates a new swarm service instance
 // implements node.Service
+// LIVEPEER: Here we can initialize the streamer (handles streaming channels)
 func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.Config, swapEnabled, syncEnabled bool, cors string) (self *Swarm, err error) {
 	if bytes.Equal(common.FromHex(config.PublicKey), storage.ZeroKey) {
 		return nil, fmt.Errorf("empty public key")
@@ -112,16 +114,21 @@ func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.
 	glog.V(logger.Debug).Infof("Set up swarm network with Kademlia hive")
 
 	// setup cloud storage backend
-	cloud := network.NewForwarder(self.hive)
+	self.cloud = network.NewForwarder(self.hive)
 	glog.V(logger.Debug).Infof("-> set swarm forwarder as cloud storage backend")
 	// setup cloud storage internal access layer
 
-	self.storage = storage.NewNetStore(hash, lstore, cloud, config.StoreParams)
+	self.storage = storage.NewNetStore(hash, lstore, self.cloud, config.StoreParams)
 	glog.V(logger.Debug).Infof("-> swarm net store shared access layer to Swarm Chunk Store")
 
 	// set up Depo (storage handler = cloud storage access layer for incoming remote requests)
 	self.depo = network.NewDepo(hash, lstore, self.storage)
 	glog.V(logger.Debug).Infof("-> REmote Access to CHunks")
+
+	self.streamer, err = storage.NewStreamer()
+	if err != nil {
+		return
+	}
 
 	// set up DPA, the cloud storage local access layer
 	dpaChunkStore := storage.NewDpaChunkStore(lstore, self.storage)
@@ -196,9 +203,11 @@ func (self *Swarm) Start(net *p2p.Server) error {
 		go httpapi.StartHttpServer(self.api, &httpapi.Server{Addr: addr, CorsString: self.corsString})
 	}
 
-	if self.config.EnableRTMP {
-		fmt.Println("Starting RTMP Server...")
-		rtmpapi.StartRtmpServer()
+	if self.config.RTMPPort != "" {
+		//StartRTMPServer spins up a go routine internally.  It would be good to know the convention
+		//around this.  Go routines are spun up all over the place in this codebase, it's a little tough
+		//to understand whether you are in the main thread sometimes (or does that just not matter in Go?)
+		rtmpapi.StartRtmpServer(self.config.RTMPPort, self.streamer, self.cloud)
 	}
 
 	glog.V(logger.Debug).Infof("Swarm http proxy started on port: %v", self.config.Port)
@@ -224,7 +233,8 @@ func (self *Swarm) Stop() error {
 
 // implements the node.Service interface
 func (self *Swarm) Protocols() []p2p.Protocol {
-	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId)
+	//LIVEPEER: This is the place to add a "streamer" instance, that handles the streaming channels
+	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId, self.streamer)
 	if err != nil {
 		return nil
 	}
@@ -294,7 +304,7 @@ func NewLocalSwarm(datadir, port string) (self *Swarm, err error) {
 		return
 	}
 
-	config, err := api.NewConfig(datadir, common.Address{}, prvKey, network.NetworkId, false)
+	config, err := api.NewConfig(datadir, common.Address{}, prvKey, network.NetworkId, "")
 	if err != nil {
 		return
 	}

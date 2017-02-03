@@ -50,6 +50,7 @@ type CloudStore interface {
 	Store(*Chunk)
 	Deliver(*Chunk)
 	Retrieve(*Chunk)
+	Stream(Key)
 }
 
 type StoreParams struct {
