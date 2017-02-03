@@ -57,7 +57,14 @@ func CopyFromChannel(dst av.Muxer, streamer *storage.Streamer) (err error) {
 	for {
 		select {
 		case chunk := <-streamer.DstVideoChan:
-			fmt.Println("Copying from channel")
+			// fmt.Println("Copying from channel")
+			if chunk.ID == 300 {
+				fmt.Println("Copying EOF from channel")
+				err := dst.WriteTrailer()
+				if err != nil {
+					fmt.Println("Error writing trailer: ", err)
+				}
+			}
 			dst.WritePacket(chunk.Packet)
 			// This doesn't work because default will just end the stream too quickly.
 			// There is a design trade-off here: if we want the stream to automatically continue after some kind of
@@ -77,17 +84,17 @@ func CopyToChannel(src av.Demuxer, streamer *storage.Streamer) (err error) {
 	if streams, err = src.Streams(); err != nil {
 		return
 	}
-	if err = CopyPacketsToChannel(src, streams, streamer); err != nil {
-		return
-	}
-	return
-}
 
-func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, streamer *storage.Streamer) (err error) {
 	for {
 		var pkt av.Packet
 		if pkt, err = src.ReadPacket(); err != nil {
 			if err == io.EOF {
+				chunk := &storage.VideoChunk{
+					ID:            300,
+					HeaderStreams: streams,
+					Packet:        pkt,
+				}
+				streamer.SrcVideoChan <- chunk
 				fmt.Println("Done with packet reading: %s", err)
 				break
 			}
@@ -95,34 +102,17 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 		}
 
 		chunk := &storage.VideoChunk{
-			ID:            1,
-			HeaderStreams: headerStreams,
+			ID:            200,
+			HeaderStreams: streams,
 			Packet:        pkt,
 		}
 
-		// storage.TestChunkEncoding(*chunk)
-		//This is the real code block
 		select {
 		case streamer.SrcVideoChan <- chunk:
 			fmt.Println("sent video chunk")
 		default:
-			// fmt.Print(".")
 		}
-
-		//Just testing to see channels work with video packets
-		// byteArr := storage.VideoChunkToByteArr(*chunk)
-		// newC := storage.ByteArrInVideoChunk(byteArr)
-		// fmt.Println("oldC header: %v", chunk.HeaderStreams)
-		// fmt.Println("bytearr: %v", byteArr)
-		// fmt.Println("newC header: %v", newC.HeaderStreams)
-
-		// select {
-		// case streamer.DstVideoChan <- chunk:
-		// 	fmt.Println("sent video chunk to dstchan (just to exp)")
-		// default:
-		//The channel is full.  We are just dropping packets here.
-		// fmt.Print(".")
-		// }
 	}
+
 	return
 }

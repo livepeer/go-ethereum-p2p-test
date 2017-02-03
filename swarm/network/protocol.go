@@ -255,7 +255,6 @@ func (self *bzz) handle() error {
 				key := []byte("teststream")
 				msg := &streamRequestMsgData{
 					SData: storage.VideoChunkToByteArr(*videoChunk),
-					Id:    200,
 					Key:   key,
 				}
 

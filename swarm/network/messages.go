@@ -71,7 +71,6 @@ func (self *statusMsgData) String() string {
 
 /*
  stream requests are sent to peers who either has the stream source, or needs the stream data.
- for now, Id=100 means it's a request, Id=200 means it's a data chunk
 */
 
 type streamRequestMsgData struct {
