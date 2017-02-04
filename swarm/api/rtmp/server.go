@@ -120,7 +120,10 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 				}
 				stream.SrcVideoChan <- chunk
 				fmt.Println("Done with packet reading: %s", err)
-				stream.SrcVideoChan
+
+				// Close the channel so that the protocol.go loop
+				// reading from the channel doesn't block
+				close(stream.SrcVideoChan)
 				break
 			}
 			return
