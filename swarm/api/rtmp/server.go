@@ -13,6 +13,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
+	"github.com/ethereum/go-ethereum/logger"
+	"github.com/ethereum/go-ethereum/logger/glog"
 
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/format"
@@ -24,7 +27,7 @@ func init() {
 }
 
 //Spin off a go routine that serves rtmp requests.  For now I think this only handles a single stream.
-func StartRtmpServer(rtmpPort string, streamer *storage.Streamer, forwarder storage.CloudStore) {
+func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder storage.CloudStore) {
 	if rtmpPort == "" {
 		rtmpPort = "1935"
 	}
@@ -61,7 +64,7 @@ func StartRtmpServer(rtmpPort string, streamer *storage.Streamer, forwarder stor
 }
 
 //Copy packets from channels in the streamer to our destination muxer
-func CopyFromChannel(dst av.Muxer, stream *storage.Stream) (err error) {
+func CopyFromChannel(dst av.Muxer, stream *streaming.Stream) (err error) {
 	chunk := <-stream.DstVideoChan
 	// chunk := storage.ByteArrInVideoChunk(<-streamer.ByteArrChan)
 	if err = dst.WriteHeader(chunk.HeaderStreams); err != nil {
@@ -73,7 +76,7 @@ func CopyFromChannel(dst av.Muxer, stream *storage.Stream) (err error) {
 		select {
 		case chunk := <-stream.DstVideoChan:
 			// fmt.Println("Copying from channel")
-			if chunk.ID == 300 {
+			if chunk.ID == streaming.EOFStreamMsgID {
 				fmt.Println("Copying EOF from channel")
 				err := dst.WriteTrailer()
 				if err != nil {
@@ -94,7 +97,7 @@ func CopyFromChannel(dst av.Muxer, stream *storage.Stream) (err error) {
 
 //Copy packets from our source demuxer to the streamer channels.  For now we put the header in every packet.  We can
 //optimize for packet size later.
-func CopyToChannel(src av.Demuxer, stream *storage.Stream) (err error) {
+func CopyToChannel(src av.Demuxer, stream *streaming.Stream) (err error) {
 	var streams []av.CodecData
 	if streams, err = src.Streams(); err != nil {
 		return
@@ -105,25 +108,26 @@ func CopyToChannel(src av.Demuxer, stream *storage.Stream) (err error) {
 	return
 }
 
-func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, stream *storage.Stream) (err error) {
+func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, stream *streaming.Stream) (err error) {
 	for {
 		var pkt av.Packet
 		if pkt, err = src.ReadPacket(); err != nil {
 			if err == io.EOF {
-				chunk := &storage.VideoChunk{
-					ID:            300,
+				chunk := &streaming.VideoChunk{
+					ID:            streaming.EOFStreamMsgID,
 					HeaderStreams: headerStreams,
 					Packet:        pkt,
 				}
 				stream.SrcVideoChan <- chunk
 				fmt.Println("Done with packet reading: %s", err)
+				stream.SrcVideoChan
 				break
 			}
 			return
 		}
 
-		chunk := &storage.VideoChunk{
-			ID:            200,
+		chunk := &streaming.VideoChunk{
+			ID:            streaming.DeliverStreamMsgID,
 			HeaderStreams: headerStreams,
 			Packet:        pkt,
 		}
@@ -134,6 +138,6 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 		default:
 		}
 	}
-
+	glog.V(logger.Info).Infof("Returning from the copyPacketsToChannel thread")
 	return
 }

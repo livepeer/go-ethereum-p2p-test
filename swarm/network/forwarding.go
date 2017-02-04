@@ -24,7 +24,9 @@ import (
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 )
 
 const requesterCount = 3
@@ -116,7 +118,7 @@ func (self *forwarder) Stream(nodeID discover.NodeID, streamID string) {
 	msg := &streamRequestMsgData{
 		OriginNode: nodeID,
 		StreamID:   streamID,
-		Id:         100,
+		Id:         streaming.RequestStreamMsgID,
 		// VideoChunk: *chunk,
 	}
 
