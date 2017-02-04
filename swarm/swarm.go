@@ -126,7 +126,7 @@ func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.
 	self.depo = network.NewDepo(hash, lstore, self.storage)
 	glog.V(logger.Debug).Infof("-> REmote Access to CHunks")
 
-	self.streamer, err = streaming.NewStreamer()
+	self.streamer, err = streaming.NewStreamer(common.HexToHash(self.config.BzzKey))
 	if err != nil {
 		return
 	}

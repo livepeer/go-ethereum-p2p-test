@@ -259,9 +259,8 @@ func (self *bzz) handle() error {
 		}
 
 		if req.Id == streaming.RequestStreamMsgID {
-			fmt.Println("Got ViewRequest")
+			fmt.Println("Got a request to send the stream to a new peer", originNode.Str(), streamID)
 
-			//TODO: Get the chunks streaming back to the peer
 			for videoChunk := range stream.SrcVideoChan {
 				key := []byte("teststream")
 				msg := &streamRequestMsgData{

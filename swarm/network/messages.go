@@ -21,6 +21,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/swarm/network/kademlia"
@@ -74,7 +75,7 @@ func (self *statusMsgData) String() string {
 */
 
 type streamRequestMsgData struct {
-	OriginNode discover.NodeID
+	OriginNode common.Hash
 	StreamID   string
 	SData      []byte
 	Id         uint64

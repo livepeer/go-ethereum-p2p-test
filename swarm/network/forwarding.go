@@ -23,7 +23,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/ethereum/go-ethereum/p2p/discover"
 
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
@@ -113,8 +112,9 @@ func (self *forwarder) Store(chunk *storage.Chunk) {
 }
 
 // Stream request - this is to request for a stream, not to do broadcast.  The chunks should arrive in protocol.go
-func (self *forwarder) Stream(nodeID discover.NodeID, streamID string) {
-
+func (self *forwarder) Stream(id string) {
+	s := streaming.StreamID(id)
+	nodeID, streamID := s.SplitComponents()
 	msg := &streamRequestMsgData{
 		OriginNode: nodeID,
 		StreamID:   streamID,
@@ -122,7 +122,7 @@ func (self *forwarder) Stream(nodeID discover.NodeID, streamID string) {
 		// VideoChunk: *chunk,
 	}
 
-	key := []byte(nodeID.String())
+	key := nodeID.Bytes()
 
 	fmt.Println("Forwarding stream request: ", msg)
 	peers := self.hive.getPeers(key, 1)

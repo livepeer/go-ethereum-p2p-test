@@ -13,7 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	//"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 
@@ -34,19 +34,16 @@ func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder st
 	fmt.Println("Starting RTMP Server on port: ", rtmpPort)
 	server := &joy4rtmp.Server{Addr: ":" + rtmpPort}
 
-	// Set hardcoded nodeID and streamID for testing
-	nodeID := discover.NodeID{}
-	streamID := "teststream"
-
 	server.HandlePlay = func(conn *joy4rtmp.Conn) {
-		// Need to identify correct stream from streamer.
-		// For now use a default, but in the future we should parse it
-		// out of the url path or request params
-		stream, _ := streamer.AddStream(nodeID, streamID)
+		glog.V(logger.Info).Infof("Trying to play stream at %v", conn.URL)
+
+		// Parse the streamID from the query param ?streamID=....
+		strmID := conn.URL.Query()["streamID"][0]
+		glog.V(logger.Info).Infof("Got streamID as %v", strmID)
+		stream, _ := streamer.SubscribeToStream(strmID)
 
 		//Send subscribe request
-		//key := []byte("teststream")
-		forwarder.Stream(nodeID, streamID)
+		forwarder.Stream(strmID)
 
 		//Copy chunks to outgoing connection
 		go CopyFromChannel(conn, stream)
@@ -54,7 +51,8 @@ func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder st
 
 	server.HandlePublish = func(conn *joy4rtmp.Conn) {
 		// Create a new stream
-		stream, _ := streamer.AddStream(nodeID, streamID)
+		stream, _ := streamer.AddNewStream()
+		glog.V(logger.Info).Infof("Added a new stream with id: %v", stream.ID)
 
 		//Send video to streamer channels
 		go CopyToChannel(conn, stream)
