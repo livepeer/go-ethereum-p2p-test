@@ -88,7 +88,7 @@ type bzz struct {
 	key        storage.Key          // baseaddress as storage.Key
 	storage    StorageHandler       // handler storage/retrieval related requests coming via the bzz wire protocol
 	hive       *Hive                // the logistic manager, peerPool, routing service and peer handler
-	streamer   *streaming.Streamer    // broker for video streaming, provider of video channels
+	streamer   *streaming.Streamer  // broker for video streaming, provider of video channels
 	dbAccess   *DbAccess            // access to db storage counter and iterator for syncing
 	requestDb  *storage.LDBDatabase // db to persist backlog of deliveries to aid syncing
 	remoteAddr *peerAddr            // remote peers address

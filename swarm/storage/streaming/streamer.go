@@ -3,8 +3,8 @@ package streaming
 import (
 	"bytes"
 	"encoding/gob"
-	"fmt"
 	"errors"
+	"fmt"
 
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/codec/aacparser"

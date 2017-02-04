@@ -3,7 +3,6 @@ package streaming
 import (
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/nareix/joy4/av"
-
 )
 
 const (

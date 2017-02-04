@@ -155,7 +155,6 @@ func NewChunk(key Key, rs *RequestStatus) *Chunk {
 	return &Chunk{Key: key, Req: rs}
 }
 
-
 /*
 The ChunkStore interface is implemented by :
 
