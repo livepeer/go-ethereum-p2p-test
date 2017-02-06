@@ -238,7 +238,7 @@ func (self *Swarm) Stop() error {
 // implements the node.Service interface
 func (self *Swarm) Protocols() []p2p.Protocol {
 	//LIVEPEER: This is the place to add a "streamer" instance, that handles the streaming channels
-	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId, self.streamer, self.streamDB, self.cloud)
+	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId, self.streamer, self.streamDB, &self.cloud)
 	if err != nil {
 		return nil
 	}

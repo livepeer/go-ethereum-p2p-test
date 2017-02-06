@@ -90,7 +90,7 @@ type bzz struct {
 	hive       *Hive                // the logistic manager, peerPool, routing service and peer handler
 	streamer   *streaming.Streamer  // broker for video streaming, provider of video channels
 	streamDB   *StreamDB            // keeps track of the downstream peers requesting a stream in the network layer
-	forwarder  storage.CloudStore   // The forwarder
+	forwarder  *storage.CloudStore  // The forwarder
 	dbAccess   *DbAccess            // access to db storage counter and iterator for syncing
 	requestDb  *storage.LDBDatabase // db to persist backlog of deliveries to aid syncing
 	remoteAddr *peerAddr            // remote peers address
@@ -131,7 +131,7 @@ on each peer connection
 The Run function of the Bzz protocol class creates a bzz instance
 which will represent the peer for the swarm hive and all peer-aware components
 */
-func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer, streamDB *StreamDB, forwarder storage.CloudStore) (p2p.Protocol, error) {
+func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer, streamDB *StreamDB, forwarder *storage.CloudStore) (p2p.Protocol, error) {
 
 	// a single global request db is created for all peer connections
 	// this is to persist delivery backlog and aid syncronisation
@@ -164,7 +164,7 @@ the main protocol loop that
  * whenever the loop terminates, the peer will disconnect with Subprotocol error
  * whenever handlers return an error the loop terminates
 */
-func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter, streamer *streaming.Streamer, streamDB *StreamDB, forwarder storage.CloudStore) (err error) {
+func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter, streamer *streaming.Streamer, streamDB *StreamDB, forwarder *storage.CloudStore) (err error) {
 
 	self := &bzz{
 		storage:   depo,
@@ -270,7 +270,7 @@ func (self *bzz) handle() error {
 			stream, _ = self.streamer.SubscribeToStream(string(concatedStreamID))
 			glog.V(logger.Info).Infof("Registering %v as a downstream requester for stream %v", self.remoteAddr, stream.ID)
 			self.streamDB.AddDownstreamPeer(concatedStreamID, &peer{bzz: self})
-			self.forwarder.Stream(string(concatedStreamID))
+			(*self.forwarder).Stream(string(concatedStreamID))
 		} else if req.Id == streaming.RequestStreamMsgID {
 			// Aready subscribed to this stream
 			glog.V(logger.Info).Infof("Got a request to send the stream %v to a new peer %x", streamID, originNode)
