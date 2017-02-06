@@ -283,15 +283,6 @@ func (self *bzz) handle() error {
 					Id:         streaming.DeliverStreamMsgID,
 				}
 
-				// Was formerly streaming this to the first peer that is found in the hive
-				//key := originNode.Bytes()
-				//peers := self.hive.getPeers(key, 1)
-				//fmt.Println("# of peers in forwarder: ", len(peers))
-				//for _, p := range peers {
-				//	fmt.Println("Streaming video chunk in protocol to: ", p.Addr)
-				//	p.stream(msg)
-				//}
-
 				// Stream this to the requestor
 				self.stream(msg)
 			}
