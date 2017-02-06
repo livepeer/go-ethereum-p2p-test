@@ -5,6 +5,8 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/codec/aacparser"
@@ -59,7 +61,9 @@ func (self *Streamer) SubscribeToStream(id string) (stream *Stream, err error) {
 }
 
 func (self *Streamer) AddNewStream() (stream *Stream, err error) {
-	streamID := MakeStreamID(self.SelfAddress, "teststream")
+	//newID := // Generate random string for the stream
+	uid := randomStreamID()
+	streamID := MakeStreamID(self.SelfAddress, fmt.Sprintf("%x", uid))
 	glog.V(logger.Info).Infof("Adding new stream with ID: %v", streamID)
 	return self.saveStreamForId(streamID)
 }
@@ -135,4 +139,13 @@ func TestChunkEncoding(chunk VideoChunk) {
 	newChunk := ByteArrInVideoChunk(bytes)
 	fmt.Println("chunk: ", chunk)
 	fmt.Println("newchunk: ", newChunk)
+}
+
+func randomStreamID() common.Hash {
+	rand.Seed(time.Now().UnixNano())
+	var x common.Hash
+	for i := 0; i < len(x); i++ {
+		x[i] = byte(rand.Uint32())
+	}
+	return x
 }

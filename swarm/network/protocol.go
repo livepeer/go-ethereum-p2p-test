@@ -262,7 +262,7 @@ func (self *bzz) handle() error {
 			fmt.Println("Got a request to send the stream to a new peer", originNode.Str(), streamID)
 
 			for videoChunk := range stream.SrcVideoChan {
-				key := []byte("teststream")
+				key := originNode.Bytes()
 				msg := &streamRequestMsgData{
 					OriginNode: originNode,
 					StreamID:   streamID,
