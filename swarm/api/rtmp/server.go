@@ -40,7 +40,12 @@ func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder st
 		// Parse the streamID from the query param ?streamID=....
 		strmID := conn.URL.Query()["streamID"][0]
 		glog.V(logger.Info).Infof("Got streamID as %v", strmID)
-		stream, _ := streamer.SubscribeToStream(strmID)
+		stream, err := streamer.SubscribeToStream(strmID)
+
+		if err != nil {
+			glog.V(logger.Info).Infof("Error subscribing to stream %v", err)
+			return
+		}
 
 		//Send subscribe request
 		forwarder.Stream(strmID)
