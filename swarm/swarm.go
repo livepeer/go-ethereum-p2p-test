@@ -77,6 +77,7 @@ func (self *Swarm) API() *SwarmAPI {
 // implements node.Service
 // LIVEPEER: Here we can initialize the streamer (handles streaming channels)
 func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.Config, swapEnabled, syncEnabled bool, cors string) (self *Swarm, err error) {
+
 	if bytes.Equal(common.FromHex(config.PublicKey), storage.ZeroKey) {
 		return nil, fmt.Errorf("empty public key")
 	}
