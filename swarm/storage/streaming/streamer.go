@@ -36,7 +36,6 @@ func (self *StreamID) SplitComponents() (common.Hash, string) {
 type Stream struct {
 	SrcVideoChan chan *VideoChunk
 	DstVideoChan chan *VideoChunk
-	ByteArrChan  chan []byte
 	ID           StreamID
 }
 
@@ -76,7 +75,6 @@ func (self *Streamer) saveStreamForId(streamID StreamID) (stream *Stream, err er
 	self.Streams[streamID] = &Stream{
 		SrcVideoChan: make(chan *VideoChunk, 10),
 		DstVideoChan: make(chan *VideoChunk, 10),
-		ByteArrChan:  make(chan []byte),
 		ID:           streamID,
 	}
 
@@ -84,6 +82,7 @@ func (self *Streamer) saveStreamForId(streamID StreamID) (stream *Stream, err er
 }
 
 func (self *Streamer) GetStream(nodeID common.Hash, id string) (stream *Stream, err error) {
+	// TODO, return error if it doesn't exist
 	return self.Streams[MakeStreamID(nodeID, id)], nil
 }
 
