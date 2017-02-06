@@ -45,6 +45,7 @@ import (
 	bzzswap "github.com/ethereum/go-ethereum/swarm/services/swap"
 	"github.com/ethereum/go-ethereum/swarm/services/swap/swap"
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 )
 
 const (
@@ -87,7 +88,7 @@ type bzz struct {
 	key        storage.Key          // baseaddress as storage.Key
 	storage    StorageHandler       // handler storage/retrieval related requests coming via the bzz wire protocol
 	hive       *Hive                // the logistic manager, peerPool, routing service and peer handler
-	streamer   *storage.Streamer    // broker for video streaming, provider of video channels
+	streamer   *streaming.Streamer  // broker for video streaming, provider of video channels
 	dbAccess   *DbAccess            // access to db storage counter and iterator for syncing
 	requestDb  *storage.LDBDatabase // db to persist backlog of deliveries to aid syncing
 	remoteAddr *peerAddr            // remote peers address
@@ -128,7 +129,7 @@ on each peer connection
 The Run function of the Bzz protocol class creates a bzz instance
 which will represent the peer for the swarm hive and all peer-aware components
 */
-func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *storage.Streamer) (p2p.Protocol, error) {
+func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer) (p2p.Protocol, error) {
 
 	// a single global request db is created for all peer connections
 	// this is to persist delivery backlog and aid syncronisation
@@ -161,7 +162,7 @@ the main protocol loop that
  * whenever the loop terminates, the peer will disconnect with Subprotocol error
  * whenever handlers return an error the loop terminates
 */
-func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter, streamer *storage.Streamer) (err error) {
+func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter, streamer *streaming.Streamer) (err error) {
 
 	self := &bzz{
 		storage:   depo,
@@ -248,14 +249,25 @@ func (self *bzz) handle() error {
 		}
 		// fmt.Println("Protocol got streamRequestMsg: ", req)
 
-		if req.Id == 100 {
-			fmt.Println("Got ViewRequest")
-			//TODO: Get the chunks streaming back to the peer
-			for videoChunk := range self.streamer.SrcVideoChan {
-				key := []byte("teststream")
+		// Get the stream object out of the streamer
+		originNode := req.OriginNode
+		streamID := req.StreamID
+
+		stream, err := self.streamer.GetStream(originNode, streamID)
+		if err != nil {
+			return err
+		}
+
+		if req.Id == streaming.RequestStreamMsgID {
+			fmt.Println("Got a request to send the stream to a new peer", originNode.Str(), streamID)
+
+			for videoChunk := range stream.SrcVideoChan {
+				key := originNode.Bytes()
 				msg := &streamRequestMsgData{
-					SData: storage.VideoChunkToByteArr(*videoChunk),
-					Key:   key,
+					OriginNode: originNode,
+					StreamID:   streamID,
+					SData:      streaming.VideoChunkToByteArr(*videoChunk),
+					Id:         streaming.DeliverStreamMsgID,
 				}
 
 				peers := self.hive.getPeers(key, 1)
@@ -267,10 +279,10 @@ func (self *bzz) handle() error {
 			}
 		} else {
 			fmt.Println("Got video chunk")
-			chunk := storage.ByteArrInVideoChunk(req.SData)
+			chunk := streaming.ByteArrInVideoChunk(req.SData)
 
 			select {
-			case self.streamer.DstVideoChan <- &chunk:
+			case stream.DstVideoChan <- &chunk:
 				// fmt.Println("sent video chunk")
 			default:
 				// fmt.Print(".")

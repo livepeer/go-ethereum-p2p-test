@@ -11,7 +11,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/ethereum/go-ethereum/logger"
+	"github.com/ethereum/go-ethereum/logger/glog"
+	//"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
+
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/format"
 	joy4rtmp "github.com/nareix/joy4/format/rtmp"
@@ -22,32 +27,48 @@ func init() {
 }
 
 //Spin off a go routine that serves rtmp requests.  For now I think this only handles a single stream.
-func StartRtmpServer(rtmpPort string, streamer *storage.Streamer, forwarder storage.CloudStore) {
+func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder storage.CloudStore) {
 	if rtmpPort == "" {
 		rtmpPort = "1935"
 	}
 	fmt.Println("Starting RTMP Server on port: ", rtmpPort)
 	server := &joy4rtmp.Server{Addr: ":" + rtmpPort}
+
 	server.HandlePlay = func(conn *joy4rtmp.Conn) {
+		glog.V(logger.Info).Infof("Trying to play stream at %v", conn.URL)
+
+		// Parse the streamID from the query param ?streamID=....
+		strmID := conn.URL.Query()["streamID"][0]
+		glog.V(logger.Info).Infof("Got streamID as %v", strmID)
+		stream, err := streamer.SubscribeToStream(strmID)
+
+		if err != nil {
+			glog.V(logger.Info).Infof("Error subscribing to stream %v", err)
+			return
+		}
+
 		//Send subscribe request
-		key := []byte("teststream")
-		forwarder.Stream(key)
+		forwarder.Stream(strmID)
 
 		//Copy chunks to outgoing connection
-		go CopyFromChannel(conn, streamer)
+		go CopyFromChannel(conn, stream)
 	}
 
 	server.HandlePublish = func(conn *joy4rtmp.Conn) {
+		// Create a new stream
+		stream, _ := streamer.AddNewStream()
+		glog.V(logger.Info).Infof("Added a new stream with id: %v", stream.ID)
+
 		//Send video to streamer channels
-		go CopyToChannel(conn, streamer)
+		go CopyToChannel(conn, stream)
 	}
 
 	server.ListenAndServe()
 }
 
 //Copy packets from channels in the streamer to our destination muxer
-func CopyFromChannel(dst av.Muxer, streamer *storage.Streamer) (err error) {
-	chunk := <-streamer.DstVideoChan
+func CopyFromChannel(dst av.Muxer, stream *streaming.Stream) (err error) {
+	chunk := <-stream.DstVideoChan
 	// chunk := storage.ByteArrInVideoChunk(<-streamer.ByteArrChan)
 	if err = dst.WriteHeader(chunk.HeaderStreams); err != nil {
 		fmt.Println("Error writing header copying from channel")
@@ -56,9 +77,9 @@ func CopyFromChannel(dst av.Muxer, streamer *storage.Streamer) (err error) {
 
 	for {
 		select {
-		case chunk := <-streamer.DstVideoChan:
+		case chunk := <-stream.DstVideoChan:
 			// fmt.Println("Copying from channel")
-			if chunk.ID == 300 {
+			if chunk.ID == streaming.EOFStreamMsgID {
 				fmt.Println("Copying EOF from channel")
 				err := dst.WriteTrailer()
 				if err != nil {
@@ -79,40 +100,50 @@ func CopyFromChannel(dst av.Muxer, streamer *storage.Streamer) (err error) {
 
 //Copy packets from our source demuxer to the streamer channels.  For now we put the header in every packet.  We can
 //optimize for packet size later.
-func CopyToChannel(src av.Demuxer, streamer *storage.Streamer) (err error) {
+func CopyToChannel(src av.Demuxer, stream *streaming.Stream) (err error) {
 	var streams []av.CodecData
 	if streams, err = src.Streams(); err != nil {
 		return
 	}
+	if err = CopyPacketsToChannel(src, streams, stream); err != nil {
+		return
+	}
+	return
+}
 
+func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, stream *streaming.Stream) (err error) {
 	for {
 		var pkt av.Packet
 		if pkt, err = src.ReadPacket(); err != nil {
 			if err == io.EOF {
-				chunk := &storage.VideoChunk{
-					ID:            300,
-					HeaderStreams: streams,
+				chunk := &streaming.VideoChunk{
+					ID:            streaming.EOFStreamMsgID,
+					HeaderStreams: headerStreams,
 					Packet:        pkt,
 				}
-				streamer.SrcVideoChan <- chunk
+				stream.SrcVideoChan <- chunk
 				fmt.Println("Done with packet reading: %s", err)
+
+				// Close the channel so that the protocol.go loop
+				// reading from the channel doesn't block
+				close(stream.SrcVideoChan)
 				break
 			}
 			return
 		}
 
-		chunk := &storage.VideoChunk{
-			ID:            200,
-			HeaderStreams: streams,
+		chunk := &streaming.VideoChunk{
+			ID:            streaming.DeliverStreamMsgID,
+			HeaderStreams: headerStreams,
 			Packet:        pkt,
 		}
 
 		select {
-		case streamer.SrcVideoChan <- chunk:
+		case stream.SrcVideoChan <- chunk:
 			fmt.Println("sent video chunk")
 		default:
 		}
 	}
-
+	glog.V(logger.Info).Infof("Returning from the copyPacketsToChannel thread")
 	return
 }

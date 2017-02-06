@@ -23,7 +23,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 )
 
 const requesterCount = 3
@@ -110,15 +112,19 @@ func (self *forwarder) Store(chunk *storage.Chunk) {
 }
 
 // Stream request - this is to request for a stream, not to do broadcast.  The chunks should arrive in protocol.go
-func (self *forwarder) Stream(key storage.Key) {
-
+func (self *forwarder) Stream(id string) {
+	s := streaming.StreamID(id)
+	nodeID, streamID := s.SplitComponents()
 	msg := &streamRequestMsgData{
-		Key: key,
-		Id:  100,
+		OriginNode: nodeID,
+		StreamID:   streamID,
+		Id:         streaming.RequestStreamMsgID,
 		// VideoChunk: *chunk,
 	}
 
-	fmt.Println("Forwarding stream request: ", msg)
+	key := nodeID.Bytes()
+
+	fmt.Println("Forwarding stream request: ", id)
 	peers := self.hive.getPeers(key, 1)
 	fmt.Println("# of peers in forwarder: ", len(peers))
 	for _, p := range peers {

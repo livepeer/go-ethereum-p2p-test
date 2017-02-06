@@ -37,6 +37,7 @@ import (
 	rtmpapi "github.com/ethereum/go-ethereum/swarm/api/rtmp"
 	"github.com/ethereum/go-ethereum/swarm/network"
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 	"golang.org/x/net/context"
 )
 
@@ -55,7 +56,7 @@ type Swarm struct {
 	privateKey  *ecdsa.PrivateKey
 	corsString  string
 	swapEnabled bool
-	streamer    *storage.Streamer
+	streamer    *streaming.Streamer
 }
 
 type SwarmAPI struct {
@@ -125,7 +126,7 @@ func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.
 	self.depo = network.NewDepo(hash, lstore, self.storage)
 	glog.V(logger.Debug).Infof("-> REmote Access to CHunks")
 
-	self.streamer, err = storage.NewStreamer()
+	self.streamer, err = streaming.NewStreamer(common.HexToHash(self.config.BzzKey))
 	if err != nil {
 		return
 	}

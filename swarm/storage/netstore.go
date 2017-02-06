@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	//"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 )
 
 /*
@@ -50,7 +51,7 @@ type CloudStore interface {
 	Store(*Chunk)
 	Deliver(*Chunk)
 	Retrieve(*Chunk)
-	Stream(Key)
+	Stream(string)
 }
 
 type StoreParams struct {
