@@ -246,18 +246,18 @@ func (self *bzz) handle() error {
 		// handleStatus
 		glog.V(logger.Debug).Infof("Status message: %v", msg)
 		return self.protoError(ErrExtraStatusMsg, "")
+
 	case streamRequestMsg:
 		var req streamRequestMsgData
 		if err := msg.Decode(&req); err != nil {
 			return err
 		}
-		// fmt.Println("Protocol got streamRequestMsg: ", req)
 
-		// Get the stream object out of the streamer
 		originNode := req.OriginNode
 		streamID := req.StreamID
 		concatedStreamID := streaming.MakeStreamID(originNode, streamID)
 
+		// Get the stream object out of the streamer
 		stream, err := self.streamer.GetStream(originNode, streamID)
 		if err != nil {
 			// Got an error, return
@@ -284,30 +284,48 @@ func (self *bzz) handle() error {
 				}
 
 				// Stream this to the requestor
-				self.stream(msg)
+				err := self.stream(msg)
+				if err != nil {
+					glog.V(logger.Error).Infof("Error sending stream to requestor: %s\n", err)
+					return err
+				}
 			}
 		} else {
-			// Send to downstream peers
-			msg := &streamRequestMsgData{
-				OriginNode: req.OriginNode,
-				StreamID:   req.StreamID,
-				SData:      req.SData,
-				Id:         streaming.DeliverStreamMsgID,
+			downstreamRequesters := self.streamDB.DownstreamRequesters[concatedStreamID]
+			if len(downstreamRequesters) > 0 {
+				// Send to downstream peers
+				msg := &streamRequestMsgData{
+					OriginNode: req.OriginNode,
+					StreamID:   req.StreamID,
+					SData:      req.SData,
+					Id:         streaming.DeliverStreamMsgID,
+				}
+
+				// for _, p := range self.streamDB.DownstreamRequesters[concatedStreamID] {
+				for _, p := range downstreamRequesters {
+					glog.V(logger.Info).Infof("Forwarding chunk to %v", p.remoteAddr)
+					err := p.stream(msg)
+					if err != nil {
+						glog.V(logger.Error).Infof("Error forwarding to downstream requester: %s", err)
+						return err
+					}
+				}
+
 			}
 
-			for _, p := range self.streamDB.DownstreamRequesters[concatedStreamID] {
-				glog.V(logger.Info).Infof("Forwarding chunk to %v", p.remoteAddr)
-				p.stream(msg)
-			}
-
+			//Play to local video consumer
 			chunk := streaming.ByteArrInVideoChunk(req.SData)
-
-			select {
-			case stream.DstVideoChan <- &chunk:
-				// fmt.Println("sent video chunk")
-			default:
-				// fmt.Print(".")
+			if chunk.Seq%100 == 0 {
+				fmt.Printf("video seq: %d\n", chunk.Seq)
 			}
+
+			stream.PutToDstVideoChan(&chunk)
+			// select {
+			// case stream.DstVideoChan <- &chunk:
+			// 	// fmt.Println("sent video chunk")
+			// default:
+			// 	// fmt.Print(".")
+			// }
 
 			// Close the source channel if this was an EOF msg
 			if req.Id == streaming.EOFStreamMsgID {

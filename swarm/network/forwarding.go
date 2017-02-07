@@ -17,7 +17,6 @@
 package network
 
 import (
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -124,9 +123,7 @@ func (self *forwarder) Stream(id string) {
 
 	key := nodeID.Bytes()
 
-	fmt.Println("Forwarding stream request: ", id)
 	peers := self.hive.getPeers(key, 1)
-	fmt.Println("# of peers in forwarder: ", len(peers))
 	for _, p := range peers {
 		p.stream(msg)
 	}

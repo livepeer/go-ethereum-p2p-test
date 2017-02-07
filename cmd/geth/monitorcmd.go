@@ -86,6 +86,7 @@ func monitor(ctx *cli.Context) error {
 		utils.Fatalf("Failed to retrieve system metrics: %v", err)
 	}
 	monitored := resolveMetrics(metrics, ctx.Args())
+	fmt.Println(monitored)
 	if len(monitored) == 0 {
 		list := expandMetrics(metrics, "")
 		sort.Strings(list)
@@ -205,8 +206,10 @@ func resolveMetric(metrics map[string]interface{}, pattern string, path string) 
 			results = append(results, expandMetrics(metric, path+variation+"/")...)
 
 		default:
-			utils.Fatalf("Metric pattern resolved to unexpected type: %v", reflect.TypeOf(metric))
-			return nil
+			//Instead of quitting, just skip the metric
+			fmt.Printf("Metric pattern resolved to unexpected type: %v\n", reflect.TypeOf(metric))
+			// utils.Fatalf("Metric pattern resolved to unexpected type: %v", reflect.TypeOf(metric))
+			// return nil
 		}
 	}
 	return results
@@ -227,8 +230,10 @@ func expandMetrics(metrics map[string]interface{}, path string) []string {
 			list = append(list, expandMetrics(metric, path+name+"/")...)
 
 		default:
-			utils.Fatalf("Metric pattern %s resolved to unexpected type: %v", path+name, reflect.TypeOf(metric))
-			return nil
+			//Instead of quitting, just skip the metric
+			fmt.Printf("Metric pattern %s resolved to unexpected type: %v\n", path+name, reflect.TypeOf(metric))
+			// utils.Fatalf("Metric pattern %s resolved to unexpected type: %v", path+name, reflect.TypeOf(metric))
+			// return nil
 		}
 	}
 	return list

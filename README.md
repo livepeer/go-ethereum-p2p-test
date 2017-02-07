@@ -9,6 +9,11 @@ Set up 2 swarm nodes, make sure they are talking to each other, then stream into
 
 `ffplay rtmp://localhost:1936/movie`
 
+To look at a list of metrics, use the --metrics flag when starting swarm, and use `geth monitor` to monitor metrics.  For example:
+`go run cmd/swarm/*.go --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --verbosity 4 --maxpeers 3 --port 30402 --bzznetworkid 412 --rtmp 1935 --metrics`
+
+`geth monitor --attach ipc:/Users/erictang/Sandbox/swarmdata1/bzzd.ipc livepeer/test livepeer/chunks/`
+
 ## Ethereum Go
 
 Official golang implementation of the Ethereum protocol.
