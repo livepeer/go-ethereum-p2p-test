@@ -125,15 +125,8 @@ func (self *forwarder) Stream(id string) {
 
 	peers := self.hive.getPeers(key, 1)
 	for _, p := range peers {
-		// fmt.Println("Streaming msg in forwarder to: ", p.Addr)
 		p.stream(msg)
-		// Deliver(p, msg, )
 	}
-	// 	SData:
-	// }
-	// for _, p := self.hive.getPeers(chunk.Key, 1) {
-
-	// }
 }
 
 // once a chunk is found deliver it to its requesters unless timed out

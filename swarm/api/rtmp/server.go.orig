@@ -142,9 +142,12 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 
 		select {
 		case stream.SrcVideoChan <- chunk:
+<<<<<<< HEAD
 			if chunk.Seq%10 == 0 {
 				fmt.Printf("sent video chunk: %d\n", chunk.Seq)
 			}
+=======
+>>>>>>> livepeer
 		default:
 		}
 	}

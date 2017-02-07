@@ -131,8 +131,12 @@ on each peer connection
 The Run function of the Bzz protocol class creates a bzz instance
 which will represent the peer for the swarm hive and all peer-aware components
 */
+<<<<<<< HEAD
+func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer) (p2p.Protocol, error) {
+=======
 func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer, streamDB *StreamDB, forwarder *storage.CloudStore) (p2p.Protocol, error) {
 
+>>>>>>> livepeer
 	// a single global request db is created for all peer connections
 	// this is to persist delivery backlog and aid syncronisation
 	requestDb, err := storage.NewLDBDatabase(sy.RequestDbPath)
@@ -283,46 +287,54 @@ func (self *bzz) handle() error {
 					Id:         streaming.DeliverStreamMsgID,
 				}
 
+<<<<<<< HEAD
+				peers := self.hive.getPeers(key, 1)
+				fmt.Println("# of peers in forwarder: ", len(peers))
+				for _, p := range peers {
+					// fmt.Println("Streaming video chunk in protocol to: ", p.Addr)
+					p.stream(msg)
+				}
+			}
+		} else {
+=======
 				// Stream this to the requestor
 				self.stream(msg)
 			}
 		} else {
-			downstreamRequesters := self.streamDB.DownstreamRequesters[concatedStreamID]
-			if len(downstreamRequesters) > 0 {
-				// Send to downstream peers
-				msg := &streamRequestMsgData{
-					OriginNode: req.OriginNode,
-					StreamID:   req.StreamID,
-					SData:      req.SData,
-					Id:         streaming.DeliverStreamMsgID,
-				}
-
-				// for _, p := range self.streamDB.DownstreamRequesters[concatedStreamID] {
-				for _, p := range downstreamRequesters {
-					glog.V(logger.Info).Infof("Forwarding chunk to %v", p.remoteAddr)
-					p.stream(msg)
-				}
-
+			// Send to downstream peers
+			msg := &streamRequestMsgData{
+				OriginNode: req.OriginNode,
+				StreamID:   req.StreamID,
+				SData:      req.SData,
+				Id:         streaming.DeliverStreamMsgID,
 			}
 
-			//Play to local video consumer
+			for _, p := range self.streamDB.DownstreamRequesters[concatedStreamID] {
+				glog.V(logger.Info).Infof("Forwarding chunk to %v", p.remoteAddr)
+				p.stream(msg)
+			}
+
+>>>>>>> livepeer
 			chunk := streaming.ByteArrInVideoChunk(req.SData)
 			if chunk.Seq%10 == 0 {
 				fmt.Printf("video seq: %d\n", chunk.Seq)
 			}
 
+<<<<<<< HEAD
 			stream.PutToDstVideoChan(&chunk)
+
 			// select {
 			// case stream.DstVideoChan <- &chunk:
-			// 	// fmt.Println("sent video chunk")
+			// fmt.Println("sent video chunk")
 			// default:
-			// 	// fmt.Print(".")
+			// fmt.Print(".")
 			// }
-
+=======
 			// Close the source channel if this was an EOF msg
 			if req.Id == streaming.EOFStreamMsgID {
 				close(stream.SrcVideoChan)
 			}
+>>>>>>> livepeer
 		}
 
 	case storeRequestMsg:

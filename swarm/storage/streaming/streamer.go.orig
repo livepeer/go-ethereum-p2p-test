@@ -40,8 +40,11 @@ func (self *StreamID) SplitComponents() (common.Hash, string) {
 type Stream struct {
 	SrcVideoChan chan *VideoChunk
 	DstVideoChan chan *VideoChunk
+<<<<<<< HEAD
 	lastDstSeq   int64
 	ByteArrChan  chan []byte
+=======
+>>>>>>> livepeer
 	ID           StreamID
 }
 
