@@ -1,6 +1,6 @@
 // Contains the metrics collected for LivePeer
 
-package network
+package streaming
 
 import (
 	"github.com/ethereum/go-ethereum/metrics"

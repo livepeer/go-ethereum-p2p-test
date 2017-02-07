@@ -40,7 +40,6 @@ import (
 	"github.com/ethereum/go-ethereum/errs"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	bzzswap "github.com/ethereum/go-ethereum/swarm/services/swap"
@@ -131,9 +130,6 @@ The Run function of the Bzz protocol class creates a bzz instance
 which will represent the peer for the swarm hive and all peer-aware components
 */
 func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer) (p2p.Protocol, error) {
-
-	fmt.Printf("Marking livepeerTestMeter as 1\n")
-	fmt.Printf("metrics enabled: %t", metrics.Enabled)
 	// a single global request db is created for all peer connections
 	// this is to persist delivery backlog and aid syncronisation
 	requestDb, err := storage.NewLDBDatabase(sy.RequestDbPath)
@@ -263,7 +259,6 @@ func (self *bzz) handle() error {
 
 		if req.Id == streaming.RequestStreamMsgID {
 			fmt.Println("Got a request to send the stream to a new peer", originNode.Str(), streamID)
-			livepeerStreamReqMeter.Mark(1)
 
 			for videoChunk := range stream.SrcVideoChan {
 				key := originNode.Bytes()
@@ -277,20 +272,24 @@ func (self *bzz) handle() error {
 				peers := self.hive.getPeers(key, 1)
 				fmt.Println("# of peers in forwarder: ", len(peers))
 				for _, p := range peers {
-					fmt.Println("Streaming video chunk in protocol to: ", p.Addr)
+					// fmt.Println("Streaming video chunk in protocol to: ", p.Addr)
 					p.stream(msg)
 				}
 			}
 		} else {
-			fmt.Println("Got video chunk")
 			chunk := streaming.ByteArrInVideoChunk(req.SData)
-
-			select {
-			case stream.DstVideoChan <- &chunk:
-				// fmt.Println("sent video chunk")
-			default:
-				// fmt.Print(".")
+			if chunk.Seq%10 == 0 {
+				fmt.Printf("video seq: %d\n", chunk.Seq)
 			}
+
+			stream.PutToDstVideoChan(&chunk)
+
+			// select {
+			// case stream.DstVideoChan <- &chunk:
+			// fmt.Println("sent video chunk")
+			// default:
+			// fmt.Print(".")
+			// }
 		}
 
 	case storeRequestMsg:

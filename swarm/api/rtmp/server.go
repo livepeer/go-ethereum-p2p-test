@@ -112,12 +112,13 @@ func CopyToChannel(src av.Demuxer, stream *streaming.Stream) (err error) {
 }
 
 func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, stream *streaming.Stream) (err error) {
-	for {
+	for seq := int64(0); ; seq++ {
 		var pkt av.Packet
 		if pkt, err = src.ReadPacket(); err != nil {
 			if err == io.EOF {
 				chunk := &streaming.VideoChunk{
 					ID:            streaming.EOFStreamMsgID,
+					Seq:           seq,
 					HeaderStreams: headerStreams,
 					Packet:        pkt,
 				}
@@ -134,13 +135,16 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 
 		chunk := &streaming.VideoChunk{
 			ID:            streaming.DeliverStreamMsgID,
+			Seq:           seq,
 			HeaderStreams: headerStreams,
 			Packet:        pkt,
 		}
 
 		select {
 		case stream.SrcVideoChan <- chunk:
-			fmt.Println("sent video chunk")
+			if chunk.Seq%10 == 0 {
+				fmt.Printf("sent video chunk: %d\n", chunk.Seq)
+			}
 		default:
 		}
 	}

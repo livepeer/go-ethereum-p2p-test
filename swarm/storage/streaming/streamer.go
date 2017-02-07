@@ -36,8 +36,37 @@ func (self *StreamID) SplitComponents() (common.Hash, string) {
 type Stream struct {
 	SrcVideoChan chan *VideoChunk
 	DstVideoChan chan *VideoChunk
+	lastDstSeq   int64
 	ByteArrChan  chan []byte
 	ID           StreamID
+}
+
+func (self *Stream) PutToDstVideoChan(chunk *VideoChunk) {
+	livepeerChunkInMeter.Mark(1)
+	select {
+	case self.DstVideoChan <- chunk:
+		if self.lastDstSeq < chunk.Seq-1 {
+			fmt.Printf("Chunk skipped at %d\n", chunk.Seq)
+			livepeerChunkSkipMeter.Mark(1)
+		}
+		self.lastDstSeq = chunk.Seq
+	default:
+	}
+}
+
+func (self *Stream) PutToSrcVideoChan(chunk *VideoChunk) {
+	select {
+	case self.SrcVideoChan <- chunk:
+	default:
+	}
+}
+
+func (self *Stream) GetFromDstVideoChan() *VideoChunk {
+	return <-self.DstVideoChan
+}
+
+func (self *Stream) GetFromSrcVideoChan() *VideoChunk {
+	return <-self.SrcVideoChan
 }
 
 // The streamer brookers the video streams
