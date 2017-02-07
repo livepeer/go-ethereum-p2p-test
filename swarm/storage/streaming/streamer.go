@@ -25,6 +25,10 @@ func MakeStreamID(nodeID common.Hash, id string) StreamID {
 	return StreamID(fmt.Sprintf("%x%v", nodeID[:], id))
 }
 
+func (self *StreamID) String() string {
+	return string(*self)
+}
+
 // Given a stream ID, return it's origin nodeID and the unique stream ID
 func (self *StreamID) SplitComponents() (common.Hash, string) {
 	strStreamID := string(*self)
