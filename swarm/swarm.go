@@ -57,6 +57,7 @@ type Swarm struct {
 	corsString  string
 	swapEnabled bool
 	streamer    *streaming.Streamer
+	streamDB    *network.StreamDB
 }
 
 type SwarmAPI struct {
@@ -130,6 +131,8 @@ func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.
 	if err != nil {
 		return
 	}
+
+	self.streamDB = network.NewStreamDB()
 
 	// set up DPA, the cloud storage local access layer
 	dpaChunkStore := storage.NewDpaChunkStore(lstore, self.storage)
@@ -235,7 +238,7 @@ func (self *Swarm) Stop() error {
 // implements the node.Service interface
 func (self *Swarm) Protocols() []p2p.Protocol {
 	//LIVEPEER: This is the place to add a "streamer" instance, that handles the streaming channels
-	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId, self.streamer)
+	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId, self.streamer, self.streamDB, &self.cloud)
 	if err != nil {
 		return nil
 	}

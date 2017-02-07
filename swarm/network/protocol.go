@@ -89,6 +89,8 @@ type bzz struct {
 	storage    StorageHandler       // handler storage/retrieval related requests coming via the bzz wire protocol
 	hive       *Hive                // the logistic manager, peerPool, routing service and peer handler
 	streamer   *streaming.Streamer  // broker for video streaming, provider of video channels
+	streamDB   *StreamDB            // keeps track of the downstream peers requesting a stream in the network layer
+	forwarder  *storage.CloudStore  // The forwarder
 	dbAccess   *DbAccess            // access to db storage counter and iterator for syncing
 	requestDb  *storage.LDBDatabase // db to persist backlog of deliveries to aid syncing
 	remoteAddr *peerAddr            // remote peers address
@@ -129,7 +131,7 @@ on each peer connection
 The Run function of the Bzz protocol class creates a bzz instance
 which will represent the peer for the swarm hive and all peer-aware components
 */
-func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer) (p2p.Protocol, error) {
+func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer, streamDB *StreamDB, forwarder *storage.CloudStore) (p2p.Protocol, error) {
 
 	// a single global request db is created for all peer connections
 	// this is to persist delivery backlog and aid syncronisation
@@ -145,7 +147,7 @@ func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess 
 		Version: Version,
 		Length:  ProtocolLength,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-			return run(requestDb, cloud, backend, hive, dbaccess, sp, sy, networkId, p, rw, streamer)
+			return run(requestDb, cloud, backend, hive, dbaccess, sp, sy, networkId, p, rw, streamer, streamDB, forwarder)
 		},
 	}, nil
 }
@@ -162,7 +164,7 @@ the main protocol loop that
  * whenever the loop terminates, the peer will disconnect with Subprotocol error
  * whenever handlers return an error the loop terminates
 */
-func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter, streamer *streaming.Streamer) (err error) {
+func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter, streamer *streaming.Streamer, streamDB *StreamDB, forwarder *storage.CloudStore) (err error) {
 
 	self := &bzz{
 		storage:   depo,
@@ -182,6 +184,8 @@ func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook
 		syncEnabled: true,
 		NetworkId:   networkId,
 		streamer:    streamer,
+		streamDB:    streamDB,
+		forwarder:   forwarder,
 	}
 
 	// handle handshake
@@ -252,17 +256,26 @@ func (self *bzz) handle() error {
 		// Get the stream object out of the streamer
 		originNode := req.OriginNode
 		streamID := req.StreamID
+		concatedStreamID := streaming.MakeStreamID(originNode, streamID)
 
 		stream, err := self.streamer.GetStream(originNode, streamID)
 		if err != nil {
+			// Got an error, return
 			return err
 		}
 
-		if req.Id == streaming.RequestStreamMsgID {
-			fmt.Println("Got a request to send the stream to a new peer", originNode.Str(), streamID)
+		if stream == nil && req.Id == streaming.RequestStreamMsgID {
+			// Don't have this stream yet.
+			// Need to forward the message on to other peers
+			stream, _ = self.streamer.SubscribeToStream(string(concatedStreamID))
+			glog.V(logger.Info).Infof("Registering %v as a downstream requester for stream %v", self.remoteAddr, stream.ID)
+			self.streamDB.AddDownstreamPeer(concatedStreamID, &peer{bzz: self})
+			(*self.forwarder).Stream(string(concatedStreamID))
+		} else if req.Id == streaming.RequestStreamMsgID {
+			// Aready subscribed to this stream
+			glog.V(logger.Info).Infof("Got a request to send the stream %v to a new peer %x", streamID, originNode)
 
 			for videoChunk := range stream.SrcVideoChan {
-				key := originNode.Bytes()
 				msg := &streamRequestMsgData{
 					OriginNode: originNode,
 					StreamID:   streamID,
@@ -270,15 +283,23 @@ func (self *bzz) handle() error {
 					Id:         streaming.DeliverStreamMsgID,
 				}
 
-				peers := self.hive.getPeers(key, 1)
-				fmt.Println("# of peers in forwarder: ", len(peers))
-				for _, p := range peers {
-					fmt.Println("Streaming video chunk in protocol to: ", p.Addr)
-					p.stream(msg)
-				}
+				// Stream this to the requestor
+				self.stream(msg)
 			}
 		} else {
-			fmt.Println("Got video chunk")
+			// Send to downstream peers
+			msg := &streamRequestMsgData{
+				OriginNode: req.OriginNode,
+				StreamID:   req.StreamID,
+				SData:      req.SData,
+				Id:         streaming.DeliverStreamMsgID,
+			}
+
+			for _, p := range self.streamDB.DownstreamRequesters[concatedStreamID] {
+				glog.V(logger.Info).Infof("Forwarding chunk to %v", p.remoteAddr)
+				p.stream(msg)
+			}
+
 			chunk := streaming.ByteArrInVideoChunk(req.SData)
 
 			select {
@@ -286,6 +307,11 @@ func (self *bzz) handle() error {
 				// fmt.Println("sent video chunk")
 			default:
 				// fmt.Print(".")
+			}
+
+			// Close the source channel if this was an EOF msg
+			if req.Id == streaming.EOFStreamMsgID {
+				close(stream.SrcVideoChan)
 			}
 		}
 

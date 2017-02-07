@@ -80,7 +80,6 @@ type streamRequestMsgData struct {
 	SData      []byte
 	Id         uint64
 
-	// isViewRequest  bool
 	requestTimeout *time.Time
 	from           *peer
 }
