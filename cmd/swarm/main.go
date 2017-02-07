@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
@@ -121,6 +122,10 @@ var (
 		Name:  "rtmp",
 		Usage: "Specify RTMP streaming port",
 	}
+	MetricsEnabledFlag = cli.BoolFlag{
+		Name:  metrics.MetricsEnabledFlag,
+		Usage: "Enable metrics collection and reporting",
+	}
 )
 
 func init() {
@@ -196,6 +201,7 @@ Prints the swarm hash of file or directory.
 		SwarmUploadDefaultPath,
 		// streaming flags
 		RTMPFlag,
+		MetricsEnabledFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Before = func(ctx *cli.Context) error {

@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/errs"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	bzzswap "github.com/ethereum/go-ethereum/swarm/services/swap"
@@ -132,6 +133,8 @@ which will represent the peer for the swarm hive and all peer-aware components
 func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer) (p2p.Protocol, error) {
 
 	livepeerTestMeter.Mark(1)
+	fmt.Printf("Marking livepeerTestMeter as 1\n")
+	fmt.Printf("metrics enabled: %t", metrics.Enabled)
 	// a single global request db is created for all peer connections
 	// this is to persist delivery backlog and aid syncronisation
 	requestDb, err := storage.NewLDBDatabase(sy.RequestDbPath)
