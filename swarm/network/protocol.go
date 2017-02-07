@@ -132,7 +132,6 @@ which will represent the peer for the swarm hive and all peer-aware components
 */
 func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer) (p2p.Protocol, error) {
 
-	livepeerTestMeter.Mark(1)
 	fmt.Printf("Marking livepeerTestMeter as 1\n")
 	fmt.Printf("metrics enabled: %t", metrics.Enabled)
 	// a single global request db is created for all peer connections
@@ -246,25 +245,25 @@ func (self *bzz) handle() error {
 		// handleStatus
 		glog.V(logger.Debug).Infof("Status message: %v", msg)
 		return self.protoError(ErrExtraStatusMsg, "")
+
 	case streamRequestMsg:
 		var req streamRequestMsgData
 		if err := msg.Decode(&req); err != nil {
 			return err
 		}
-		// fmt.Println("Protocol got streamRequestMsg: ", req)
 
-		// Get the stream object out of the streamer
 		originNode := req.OriginNode
 		streamID := req.StreamID
 
+		// Get the stream object out of the streamer
 		stream, err := self.streamer.GetStream(originNode, streamID)
 		if err != nil {
 			return err
 		}
 
 		if req.Id == streaming.RequestStreamMsgID {
-			livepeerPacketInMeter.Mark(1)
 			fmt.Println("Got a request to send the stream to a new peer", originNode.Str(), streamID)
+			livepeerStreamReqMeter.Mark(1)
 
 			for videoChunk := range stream.SrcVideoChan {
 				key := originNode.Bytes()

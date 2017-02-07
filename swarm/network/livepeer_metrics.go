@@ -7,13 +7,18 @@ import (
 )
 
 var (
+	livepeerChunkSkipMeter   = metrics.NewMeter("livepeer/chunks/skip")
+	livepeerChunkInMeter     = metrics.NewMeter("livepeer/chunks/in")
+	livepeerChunkBufferTimer = metrics.NewMeter("livepeer/chunks/buffer")
+
 	livepeerPacketSkipMeter   = metrics.NewMeter("livepeer/packets/skip")
-	livepeerPacketBufferMeter = metrics.NewMeter("livepeer/packets/buffer")
+	livepeerPacketBufferTimer = metrics.NewTimer("livepeer/packets/buffer")
 	livepeerPacketReqTimer    = metrics.NewTimer("livepeer/packets/req")
 	livepeerPacketInMeter     = metrics.NewMeter("livepeer/packets/in")
 
-	livepeerStreamInMeter      = metrics.NewMeter("livepeer/streams/in")
+	livepeerStreamReqMeter     = metrics.NewMeter("livepeer/streams/req")
 	livepeerStreamTimeoutMeter = metrics.NewMeter("livepeer/streams/timeout")
+	// How do we keep track of the video length for EACH stream? (Can't create a new timer for every new stream)
+	livepeerStreamLengthTimer = metrics.NewMeter("livepeer/streams/length") // This is the TOTAL length of ALL the videos
 
-	livepeerTestMeter = metrics.NewMeter("livepeer/test")
 )
