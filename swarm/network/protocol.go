@@ -284,7 +284,11 @@ func (self *bzz) handle() error {
 				}
 
 				// Stream this to the requestor
-				self.stream(msg)
+				err := self.stream(msg)
+				if err != nil {
+					glog.V(logger.Error).Infof("Error sending stream to requestor: %s\n", err)
+					return err
+				}
 			}
 		} else {
 			downstreamRequesters := self.streamDB.DownstreamRequesters[concatedStreamID]
@@ -300,14 +304,18 @@ func (self *bzz) handle() error {
 				// for _, p := range self.streamDB.DownstreamRequesters[concatedStreamID] {
 				for _, p := range downstreamRequesters {
 					glog.V(logger.Info).Infof("Forwarding chunk to %v", p.remoteAddr)
-					p.stream(msg)
+					err := p.stream(msg)
+					if err != nil {
+						glog.V(logger.Error).Infof("Error forwarding to downstream requester: %s", err)
+						return err
+					}
 				}
 
 			}
 
 			//Play to local video consumer
 			chunk := streaming.ByteArrInVideoChunk(req.SData)
-			if chunk.Seq%10 == 0 {
+			if chunk.Seq%100 == 0 {
 				fmt.Printf("video seq: %d\n", chunk.Seq)
 			}
 

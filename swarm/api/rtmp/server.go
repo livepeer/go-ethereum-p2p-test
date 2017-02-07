@@ -84,9 +84,14 @@ func CopyFromChannel(dst av.Muxer, stream *streaming.Stream) (err error) {
 				err := dst.WriteTrailer()
 				if err != nil {
 					fmt.Println("Error writing trailer: ", err)
+					return err
 				}
 			}
-			dst.WritePacket(chunk.Packet)
+			err := dst.WritePacket(chunk.Packet)
+			if err != nil {
+				glog.V(logger.Error).Infof("Error writing packet to video player: %s", err)
+				return err
+			}
 			// This doesn't work because default will just end the stream too quickly.
 			// There is a design trade-off here: if we want the stream to automatically continue after some kind of
 			// interruption, then we cannot end the stream.  Maybe we can do it after like... 10 mins of inactivity,
@@ -142,7 +147,7 @@ func CopyPacketsToChannel(src av.PacketReader, headerStreams []av.CodecData, str
 
 		select {
 		case stream.SrcVideoChan <- chunk:
-			if chunk.Seq%10 == 0 {
+			if chunk.Seq%100 == 0 {
 				fmt.Printf("sent video chunk: %d\n", chunk.Seq)
 			}
 		default:
