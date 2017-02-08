@@ -10,6 +10,8 @@ package rtmp
 import (
 	"fmt"
 	"io"
+	"net/http"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
@@ -19,8 +21,20 @@ import (
 
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/format"
+	"github.com/nareix/joy4/format/flv"
 	joy4rtmp "github.com/nareix/joy4/format/rtmp"
 )
+
+//This is for flushing to http request handlers (joy4 concept)
+type writeFlusher struct {
+	httpflusher http.Flusher
+	io.Writer
+}
+
+func (self writeFlusher) Flush() error {
+	self.httpflusher.Flush()
+	return nil
+}
 
 func init() {
 	format.RegisterAll()
@@ -63,6 +77,37 @@ func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder st
 		go CopyToChannel(conn, stream)
 	}
 
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("In handleFunc, Path: ", r.URL.Path)
+		// glog.V(logger.Info).Infof("Trying to play stream at %v", conn.URL)
+
+		// Parse the streamID from the query param ?streamID=....
+		strmID := r.URL.Query()["streamID"][0]
+		glog.V(logger.Info).Infof("Got streamID as %v", strmID)
+		stream, err := streamer.SubscribeToStream(strmID)
+
+		if err != nil {
+			glog.V(logger.Info).Infof("Error subscribing to stream %v", err)
+			return
+		}
+
+		//Send subscribe request
+		forwarder.Stream(strmID)
+
+		w.Header().Set("Content-Type", "video/x-flv")
+		w.Header().Set("Transfer-Encoding", "chunked")
+		w.WriteHeader(200)
+		flusher := w.(http.Flusher)
+		flusher.Flush()
+
+		muxer := flv.NewMuxerWriteFlusher(writeFlusher{httpflusher: flusher, Writer: w})
+		//Cannot kick off a go routine here because the ResponseWriter is not a pointer (so a copy of the writer doesn't make any sense)
+		CopyFromChannel(muxer, stream)
+	})
+
+	httpPortNum, _ := strconv.Atoi(rtmpPort)
+	httpPort := strconv.Itoa(httpPortNum + 7000)
+	go http.ListenAndServe(":"+httpPort, nil)
 	server.ListenAndServe()
 }
 
