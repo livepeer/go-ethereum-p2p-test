@@ -264,68 +264,37 @@ func (self *bzz) handle() error {
 			return err
 		}
 
-		if stream == nil && req.Id == streaming.RequestStreamMsgID {
-			// Don't have this stream yet.
-			// Need to forward the message on to other peers
-			stream, _ = self.streamer.SubscribeToStream(string(concatedStreamID))
-			glog.V(logger.Info).Infof("Registering %v as a downstream requester for stream %v", self.remoteAddr, stream.ID)
-			self.streamDB.AddDownstreamPeer(concatedStreamID, &peer{bzz: self})
-			(*self.forwarder).Stream(string(concatedStreamID))
-		} else if req.Id == streaming.RequestStreamMsgID {
-			// Aready subscribed to this stream
-			glog.V(logger.Info).Infof("Got a request to send the stream %v to a new peer %x", streamID, originNode)
-
-			for videoChunk := range stream.SrcVideoChan {
-				msg := &streamRequestMsgData{
-					OriginNode: originNode,
-					StreamID:   streamID,
-					SData:      streaming.VideoChunkToByteArr(*videoChunk),
-					Id:         streaming.DeliverStreamMsgID,
-				}
-
-				// Stream this to the requestor
-				err := self.stream(msg)
-				if err != nil {
-					glog.V(logger.Error).Infof("Error sending stream to requestor: %s\n", err)
-					return err
-				}
+		if req.Id == streaming.RequestStreamMsgID {
+			if stream == nil {
+				// Don't have this stream yet. Subscribe and request it.
+				stream, _ = self.streamer.SubscribeToStream(string(concatedStreamID))
+				(*self.forwarder).Stream(string(concatedStreamID))
 			}
+			// Aready subscribed to this stream. Add this peer to the downstream requesters
+			self.streamDB.AddDownstreamPeer(concatedStreamID, &peer{bzz: self})
+			glog.V(logger.Info).Infof("Registering %v as a downstream requester for stream %v", self.remoteAddr.Addr, stream.ID)
+
+			if len(self.streamDB.DownstreamRequesters[concatedStreamID]) == 1 {
+				// First peer, kick off the sync thread
+				go self.syncStreamToDownstreamRequesters(stream)
+			}
+
 		} else {
+			chunk := streaming.ByteArrInVideoChunk(req.SData)
+
 			downstreamRequesters := self.streamDB.DownstreamRequesters[concatedStreamID]
 			if len(downstreamRequesters) > 0 {
-				// Send to downstream peers
-				msg := &streamRequestMsgData{
-					OriginNode: req.OriginNode,
-					StreamID:   req.StreamID,
-					SData:      req.SData,
-					Id:         streaming.DeliverStreamMsgID,
-				}
-
-				// for _, p := range self.streamDB.DownstreamRequesters[concatedStreamID] {
-				for _, p := range downstreamRequesters {
-					glog.V(logger.Info).Infof("Forwarding chunk to %v", p.remoteAddr)
-					err := p.stream(msg)
-					if err != nil {
-						glog.V(logger.Error).Infof("Error forwarding to downstream requester: %s", err)
-						return err
-					}
-				}
-
+				// Write data to the Src channel of the stream so that it can be
+				// propagated downstream
+				stream.PutToSrcVideoChan(&chunk)
 			}
 
 			//Play to local video consumer
-			chunk := streaming.ByteArrInVideoChunk(req.SData)
 			if chunk.Seq%100 == 0 {
 				fmt.Printf("video seq: %d\n", chunk.Seq)
 			}
 
 			stream.PutToDstVideoChan(&chunk)
-			// select {
-			// case stream.DstVideoChan <- &chunk:
-			// 	// fmt.Println("sent video chunk")
-			// default:
-			// 	// fmt.Print(".")
-			// }
 
 			// Close the source channel if this was an EOF msg
 			if req.Id == streaming.EOFStreamMsgID {
@@ -545,6 +514,29 @@ func (self *bzz) sync(state *syncState) error {
 
 func (self *bzz) String() string {
 	return self.remoteAddr.String()
+}
+
+func (self *bzz) syncStreamToDownstreamRequesters(stream *streaming.Stream) {
+	originNode, streamID := stream.ID.SplitComponents()
+	for videoChunk := range stream.SrcVideoChan {
+
+		msg := &streamRequestMsgData{
+			OriginNode: originNode,
+			StreamID:   streamID,
+			SData:      streaming.VideoChunkToByteArr(*videoChunk),
+			Id:         streaming.DeliverStreamMsgID,
+		}
+
+		for _, peer := range self.streamDB.DownstreamRequesters[stream.ID] {
+
+			// Stream this to the requestor
+			err := peer.stream(msg)
+			if err != nil {
+				glog.V(logger.Error).Infof("Error sending stream to requestor: %s\n", err)
+				return
+			}
+		}
+	}
 }
 
 // repair reported address if IP missing
