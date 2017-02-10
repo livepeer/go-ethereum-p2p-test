@@ -6,10 +6,10 @@ import (
 )
 
 const (
-	NodeBroadcasting = iota
-	NodeConsuming
-	NodeRelaying
-	NodeIdle
+	NodeBroadcasting = iota // 0
+	NodeConsuming           // 1
+	NodeRelaying            // 2
+	NodeIdle                // 3
 )
 
 const (
