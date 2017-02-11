@@ -43,14 +43,19 @@ func getNetwork() *streamingviz.Network {
 	network := streamingviz.NewNetwork()
 
 	// Set up peers
-	network.ReceivePeersForNode("A", []string{"B", "D"})
-	network.ReceivePeersForNode("B", []string{"A", "D"})
-	network.ReceivePeersForNode("C", []string{"D"})
+	network.ReceivePeersForNode("A", []string{"B", "D", "F"})
+	network.ReceivePeersForNode("B", []string{"D", "E"})
+	network.ReceivePeersForNode("C", []string{"I", "F", "G"})
+	network.ReceivePeersForNode("E", []string{"I", "H"})
+	network.ReceivePeersForNode("F", []string{"G"})
+	network.ReceivePeersForNode("G", []string{"H"})
+	network.ReceivePeersForNode("H", []string{"I"})
 
 	network.StartBroadcasting("A", sID)
-	network.StartConsuming("C", sID)
-	network.StartRelaying("D", sID)
-	network.StartConsuming("B", sID)
+	network.StartConsuming("I", sID)
+	network.StartConsuming("G", sID)
+	network.StartRelaying("F", sID)
+	network.StartRelaying("C", sID)
 	network.DoneWithStream("B", sID)
 
 	return network
@@ -74,7 +79,7 @@ func networkToData(network *streamingviz.Network, streamID string) interface{} {
 	for _, v := range network.Nodes {
 		nodes = append(nodes, map[string]interface{}{
 			"id":    v.ID,
-			"group": v.Group[streamID],
+			"group": v.GroupForStream(streamID),
 		})
 	}
 

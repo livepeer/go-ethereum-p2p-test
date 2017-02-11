@@ -17,10 +17,10 @@
 <h1>Livepeer Network Visualization</h1>
 <h2>Key</h2>
 <p>
-    Blue = Publishing nodes<br>
+    Green = Publishing nodes<br>
     Red = Consuming nodes<br>
-    Green = Relaying nodes<br>
-    Orange = Inactive nodes on this stream
+    Orange = Relaying nodes<br>
+    Grey = Inactive nodes on this stream
 </p>
     
 <svg width="960" height="600"></svg>
@@ -31,10 +31,19 @@ var svg = d3.select("svg"),
     width = +svg.attr("width"),
     height = +svg.attr("height");
 
-var color = d3.scaleOrdinal(d3.schemeCategory10);
+// var color = d3.scaleOrdinal(d3.schemeCategory10);
+ var color = function(group) {
+     var colors = {
+         0: "grey",
+         1: "green",
+         2: "red",
+         3: "orange"
+     };
+     return colors[group];
+ }
 
 var simulation = d3.forceSimulation()
-    .force("link", d3.forceLink().distance(200).id(function(d) { return d.id; }))
+    .force("link", d3.forceLink().distance(300).id(function(d) { return d.id; }))
     .force("charge", d3.forceManyBody())
     .force("center", d3.forceCenter(width / 2, height / 2));
 
