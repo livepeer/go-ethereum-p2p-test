@@ -60,19 +60,27 @@ func handleEvent(w http.ResponseWriter, r *http.Request) {
 
 	switch eventName {
 	case "peers":
-		peers := event["peers"].([]string)
-		networkDB.ReceivePeersForNode(node, peers)
+		peers := event["peers"].([]interface{})
+		peerList := make([]string, 0)
+		for _, v := range peers {
+			peerList = append(peerList, v.(string))
+		}
+		networkDB.ReceivePeersForNode(node, peerList)
 	case "broadcast":
 		streamID := event["streamId"].(string)
+		fmt.Println("Got a BROADCAST event for", node, streamID)
 		networkDB.StartBroadcasting(node, streamID)
 	case "consume":
 		streamID := event["streamId"].(string)
+		fmt.Println("Got a CONSUME event for", node, streamID)
 		networkDB.StartConsuming(node, streamID)
 	case "relay":
 		streamID := event["streamId"].(string)
+		fmt.Println("Got a RELAY event for", node, streamID)
 		networkDB.StartRelaying(node, streamID)
 	case "done":
 		streamID := event["streamId"].(string)
+		fmt.Println("Got a DONE event for", node, streamID)
 		networkDB.DoneWithStream(node, streamID)
 	case "default":
 		fmt.Fprintf(w, "Error, eventName %v is unknown", eventName)

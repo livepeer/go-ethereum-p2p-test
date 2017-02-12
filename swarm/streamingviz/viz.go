@@ -109,15 +109,18 @@ func (self *Network) findNode(id string) (*Node, bool) {
 func (self *Network) ReceivePeersForNode(nodeID string, peerIDs []string) {
 	if !self.hasNode(nodeID) {
 		self.addNode(nodeID)
+		fmt.Println("Adding node:", nodeID)
 	}
 
 	for _, p := range peerIDs {
 		if !self.hasNode(p) {
 			self.addNode(p)
+			fmt.Println("Adding node from peer:", p)
 		}
 
 		if !self.hasLink(nodeID, p) {
 			self.addLink(nodeID, p)
+			fmt.Println("Adding link", nodeID, p)
 		}
 	}
 }
