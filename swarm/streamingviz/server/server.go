@@ -11,13 +11,23 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/streamingviz"
 )
 
+var networkDB *streamingviz.Network
+
+func init() {
+	networkDB = streamingviz.NewNetwork()
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
+	streamID := r.URL.Query().Get("streamid")
+
 	abs, _ := filepath.Abs("./swarm/streamingviz/server/static/index.html")
 	view, err := template.ParseFiles(abs)
 
 	//data := getData()
-	network := getNetwork()
-	data := networkToData(network, "teststream")
+	//network := getNetwork()
+	//data := networkToData(network, "teststream")
+
+	data := networkToData(networkDB, streamID)
 
 	if err != nil {
 		fmt.Fprintf(w, "error: %v", err)
@@ -32,8 +42,47 @@ func handleJson(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", view)
 }
 
+func handleEvent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		fmt.Fprintf(w, "Error. You must POST events")
+		return
+	}
+
+	body, _ := ioutil.ReadAll(r.Body)
+	var event map[string]interface{}
+	if err := json.Unmarshal(body, &event); err != nil {
+		fmt.Fprintf(w, "Error unmarshalling request: %v", err)
+		return
+	}
+
+	eventName := event["name"].(string)
+	node := event["node"].(string)
+
+	switch eventName {
+	case "peers":
+		peers := event["peers"].([]string)
+		networkDB.ReceivePeersForNode(node, peers)
+	case "broadcast":
+		streamID := event["streamId"].(string)
+		networkDB.StartBroadcasting(node, streamID)
+	case "consume":
+		streamID := event["streamId"].(string)
+		networkDB.StartConsuming(node, streamID)
+	case "relay":
+		streamID := event["streamId"].(string)
+		networkDB.StartRelaying(node, streamID)
+	case "done":
+		streamID := event["streamId"].(string)
+		networkDB.DoneWithStream(node, streamID)
+	case "default":
+		fmt.Fprintf(w, "Error, eventName %v is unknown", eventName)
+		return
+	}
+}
+
 func main() {
 	http.HandleFunc("/data.json", handleJson)
+	http.HandleFunc("/event", handleEvent)
 	http.HandleFunc("/", handler)
 	http.ListenAndServe(":8585", nil)
 }
