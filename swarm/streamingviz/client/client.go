@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -59,7 +58,6 @@ func (self *Client) initData(eventName string) (data map[string]interface{}) {
 
 func (self *Client) postEvent(data map[string]interface{}) {
 	enc, _ := json.Marshal(data)
-	fmt.Printf("About to send data %s\n", enc)
 
 	req, err := http.NewRequest("POST", self.Endpoint, bytes.NewBuffer(enc))
 	req.Header.Set("Content-Type", "application/json")
@@ -67,12 +65,8 @@ func (self *Client) postEvent(data map[string]interface{}) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		fmt.Println("Couldn't connect to the event server", err)
+		return
 	}
 	defer resp.Body.Close()
-
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
 }
