@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -41,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/network"
+	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -237,7 +239,10 @@ func version(ctx *cli.Context) error {
 
 func bzzd(ctx *cli.Context) error {
 	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
-	registerBzzService(ctx, stack)
+
+	relayChan := make(chan string)
+
+	registerBzzService(ctx, stack, relayChan)
 	utils.StartNode(stack)
 	networkId := ctx.GlobalUint64(SwarmNetworkIdFlag.Name)
 	// Add bootnodes as initial peers.
@@ -250,11 +255,53 @@ func bzzd(ctx *cli.Context) error {
 		}
 	}
 
+	// Start reporting your peers every 20 seconds
+	donePeers := make(chan bool)
+	doneRelay := make(chan bool)
+	go startPeerReporting(stack, donePeers)
+	go startRelayReporting(stack, relayChan, doneRelay)
+
 	stack.Wait()
+
+	// Close the peer reporting loop
+	donePeers <- true
+	doneRelay <- true
+
 	return nil
 }
 
-func registerBzzService(ctx *cli.Context, stack *node.Node) {
+func startPeerReporting(node *node.Node, doneChan chan bool) {
+	vizClient := streamingVizClient.NewClient(fmt.Sprintf("%s", node.Server().Self().ID))
+	tickChan := time.NewTicker(10 * time.Second).C
+	for {
+		select {
+		case <-tickChan:
+			peers := node.Server().PeersInfo()
+			peerIDs := make([]string, 0, len(peers))
+			for _, p := range peers {
+				peerIDs = append(peerIDs, p.ID)
+			}
+			vizClient.LogPeers(peerIDs)
+		case <-doneChan:
+			return
+		}
+	}
+}
+
+func startRelayReporting(node *node.Node, relayChan chan string, doneChan chan bool) {
+	vizClient := streamingVizClient.NewClient(fmt.Sprintf("%s", node.Server().Self().ID))
+	var streamID string
+	for {
+		select {
+		case streamID = <-relayChan:
+			vizClient.LogRelay(streamID)
+		case <-doneChan:
+			return
+		}
+	}
+}
+
+func registerBzzService(ctx *cli.Context, stack *node.Node, relayChan chan string) {
 	prvkey := getAccount(ctx, stack)
 
 	chbookaddr := common.HexToAddress(ctx.GlobalString(ChequebookAddrFlag.Name))
@@ -285,7 +332,8 @@ func registerBzzService(ctx *cli.Context, stack *node.Node) {
 				utils.Fatalf("Can't connect: %v", err)
 			}
 		}
-		return swarm.NewSwarm(ctx, client, bzzconfig, swapEnabled, syncEnabled, cors)
+
+		return swarm.NewSwarm(ctx, client, bzzconfig, swapEnabled, syncEnabled, cors, relayChan)
 	}
 	if err := stack.Register(boot); err != nil {
 		utils.Fatalf("Failed to register the Swarm service: %v", err)

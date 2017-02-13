@@ -18,6 +18,7 @@ import (
 	//"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
+	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
 
 	"github.com/nareix/joy4/av"
 	"github.com/nareix/joy4/format"
@@ -41,7 +42,7 @@ func init() {
 }
 
 //Spin off a go routine that serves rtmp requests.  For now I think this only handles a single stream.
-func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder storage.CloudStore) {
+func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder storage.CloudStore, viz *streamingVizClient.Client) {
 	if rtmpPort == "" {
 		rtmpPort = "1935"
 	}
@@ -54,6 +55,7 @@ func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder st
 		// Parse the streamID from the query param ?streamID=....
 		strmID := conn.URL.Query()["streamID"][0]
 		glog.V(logger.Info).Infof("Got streamID as %v", strmID)
+		viz.LogConsume(strmID)
 		stream, err := streamer.SubscribeToStream(strmID)
 
 		if err != nil {
@@ -72,6 +74,7 @@ func StartRtmpServer(rtmpPort string, streamer *streaming.Streamer, forwarder st
 		// Create a new stream
 		stream, _ := streamer.AddNewStream()
 		glog.V(logger.Info).Infof("Added a new stream with id: %v", stream.ID)
+		viz.LogBroadcast(string(stream.ID))
 
 		//Send video to streamer channels
 		go CopyToChannel(conn, stream)

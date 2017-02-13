@@ -46,6 +46,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/services/swap/swap"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
+	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
 )
 
 const (
@@ -108,6 +109,8 @@ type bzz struct {
 	syncer      *syncer             // syncer instance for the peer connection
 	syncParams  *SyncParams         // syncer params
 	syncState   *syncState          // outgoing syncronisation state (contains reference to remote peers db counter)
+	vizClient   *streamingVizClient.Client
+	relayChan   chan string
 }
 
 // interface type for handler of storage/retrieval related requests coming
@@ -131,7 +134,7 @@ on each peer connection
 The Run function of the Bzz protocol class creates a bzz instance
 which will represent the peer for the swarm hive and all peer-aware components
 */
-func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer, streamDB *StreamDB, forwarder *storage.CloudStore) (p2p.Protocol, error) {
+func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, streamer *streaming.Streamer, streamDB *StreamDB, forwarder *storage.CloudStore, relayChan chan string) (p2p.Protocol, error) {
 
 	// a single global request db is created for all peer connections
 	// this is to persist delivery backlog and aid syncronisation
@@ -147,7 +150,7 @@ func Bzz(cloud StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess 
 		Version: Version,
 		Length:  ProtocolLength,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-			return run(requestDb, cloud, backend, hive, dbaccess, sp, sy, networkId, p, rw, streamer, streamDB, forwarder)
+			return run(requestDb, cloud, backend, hive, dbaccess, sp, sy, networkId, p, rw, streamer, streamDB, forwarder, relayChan)
 		},
 	}, nil
 }
@@ -164,7 +167,7 @@ the main protocol loop that
  * whenever the loop terminates, the peer will disconnect with Subprotocol error
  * whenever handlers return an error the loop terminates
 */
-func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter, streamer *streaming.Streamer, streamDB *StreamDB, forwarder *storage.CloudStore) (err error) {
+func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook.Backend, hive *Hive, dbaccess *DbAccess, sp *bzzswap.SwapParams, sy *SyncParams, networkId uint64, p *p2p.Peer, rw p2p.MsgReadWriter, streamer *streaming.Streamer, streamDB *StreamDB, forwarder *storage.CloudStore, relayChan chan string) (err error) {
 
 	self := &bzz{
 		storage:   depo,
@@ -186,6 +189,7 @@ func run(requestDb *storage.LDBDatabase, depo StorageHandler, backend chequebook
 		streamer:    streamer,
 		streamDB:    streamDB,
 		forwarder:   forwarder,
+		relayChan:   relayChan,
 	}
 
 	// handle handshake
@@ -269,6 +273,14 @@ func (self *bzz) handle() error {
 				// Don't have this stream yet. Subscribe and request it.
 				stream, _ = self.streamer.SubscribeToStream(string(concatedStreamID))
 				(*self.forwarder).Stream(string(concatedStreamID))
+
+				// Log the relay
+				self.relayChan <- string(concatedStreamID)
+				/*if self.vizClient == nil {
+					fmt.Println("VIZCLIENT IS NIL")
+				} else {
+					self.vizClient.LogRelay(string(concatedStreamID))
+				}*/
 			}
 			// Aready subscribed to this stream. Add this peer to the downstream requesters
 			self.streamDB.AddDownstreamPeer(concatedStreamID, &peer{bzz: self})
