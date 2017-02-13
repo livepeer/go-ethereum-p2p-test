@@ -60,7 +60,6 @@ type Swarm struct {
 	streamer    *streaming.Streamer
 	streamDB    *network.StreamDB
 	viz         *streamingVizClient.Client
-	relayChan   chan string
 }
 
 type SwarmAPI struct {
@@ -80,7 +79,7 @@ func (self *Swarm) API() *SwarmAPI {
 // creates a new swarm service instance
 // implements node.Service
 // LIVEPEER: Here we can initialize the streamer (handles streaming channels)
-func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.Config, swapEnabled, syncEnabled bool, cors string, relayChan chan string) (self *Swarm, err error) {
+func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.Config, swapEnabled, syncEnabled bool, cors string, viz *streamingVizClient.Client) (self *Swarm, err error) {
 
 	if bytes.Equal(common.FromHex(config.PublicKey), storage.ZeroKey) {
 		return nil, fmt.Errorf("empty public key")
@@ -140,7 +139,7 @@ func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.
 
 	// Set up the streaming visualization client and pass it in
 	// self.viz = streamingVizClient.NewClient(nodeID)
-	self.relayChan = relayChan
+	self.viz = viz
 
 	// set up DPA, the cloud storage local access layer
 	dpaChunkStore := storage.NewDpaChunkStore(lstore, self.storage)
@@ -216,7 +215,7 @@ func (self *Swarm) Start(net *p2p.Server) error {
 	}
 
 	if self.config.RTMPPort != "" {
-		self.viz = streamingVizClient.NewClient(fmt.Sprintf("%s", net.Self().ID))
+		//self.viz = streamingVizClient.NewClient(fmt.Sprintf("%s", net.Self().ID))
 		go rtmpapi.StartRtmpServer(self.config.RTMPPort, self.streamer, self.cloud, self.viz)
 	}
 
@@ -243,7 +242,7 @@ func (self *Swarm) Stop() error {
 
 // implements the node.Service interface
 func (self *Swarm) Protocols() []p2p.Protocol {
-	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId, self.streamer, self.streamDB, &self.cloud, self.relayChan)
+	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId, self.streamer, self.streamDB, &self.cloud, self.viz)
 	if err != nil {
 		return nil
 	}

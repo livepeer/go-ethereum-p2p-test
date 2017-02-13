@@ -21,4 +21,4 @@ Nodes will report their peer list to the server every 10 seconds.
 3. Account for peers dropping off the network. Maybe rebuild the links at certain intervals based on latest peer data? Maybe use a timeout if we haven't seen a peer in awhile.
 4. Auto refresh the visualization
 5. Add a dropdown of known streams to the visualization so we can inspect them all without copying and pasting the streamID.
-6. Clean up/remove the gross channel pattern from the cmd/swarm/main.go file. Use better abstraction. Right now we have the streamingVizClient and the relayChannel pattern side by side because the protocol object can't access the node id. This is an ugly hack.
+

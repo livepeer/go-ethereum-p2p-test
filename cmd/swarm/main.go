@@ -240,9 +240,9 @@ func version(ctx *cli.Context) error {
 func bzzd(ctx *cli.Context) error {
 	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
 
-	relayChan := make(chan string)
+	vizClient := streamingVizClient.NewClient("") // Assing nodeID after the node starts
 
-	registerBzzService(ctx, stack, relayChan)
+	registerBzzService(ctx, stack, vizClient)
 	utils.StartNode(stack)
 	networkId := ctx.GlobalUint64(SwarmNetworkIdFlag.Name)
 	// Add bootnodes as initial peers.
@@ -255,23 +255,25 @@ func bzzd(ctx *cli.Context) error {
 		}
 	}
 
-	// Start reporting your peers every 20 seconds
+	// Start consuming visualization events and reporting your peers every 20 seconds.
+	// See comments below near the consumeVizEvents() method
+	vizClient.NodeID = fmt.Sprintf("%s", stack.Server().Self().ID)
+
 	donePeers := make(chan bool)
-	doneRelay := make(chan bool)
-	go startPeerReporting(stack, donePeers)
-	go startRelayReporting(stack, relayChan, doneRelay)
+	doneEvents := make(chan bool)
+	go consumeVizEvents(vizClient, doneEvents)
+	go startPeerReporting(stack, donePeers, vizClient)
 
 	stack.Wait()
 
 	// Close the peer reporting loop
 	donePeers <- true
-	doneRelay <- true
+	doneEvents <- true
 
 	return nil
 }
 
-func startPeerReporting(node *node.Node, doneChan chan bool) {
-	vizClient := streamingVizClient.NewClient(fmt.Sprintf("%s", node.Server().Self().ID))
+func startPeerReporting(node *node.Node, doneChan chan bool, vizClient *streamingVizClient.Client) {
 	tickChan := time.NewTicker(10 * time.Second).C
 	for {
 		select {
@@ -288,20 +290,39 @@ func startPeerReporting(node *node.Node, doneChan chan bool) {
 	}
 }
 
-func startRelayReporting(node *node.Node, relayChan chan string, doneChan chan bool) {
-	vizClient := streamingVizClient.NewClient(fmt.Sprintf("%s", node.Server().Self().ID))
-	var streamID string
+// Need to do this in the main thread to access the node id, since the
+// protocol doesn't have access to it. Not that clean, but it works for now.
+// Want to remove this to avoid centralization anyway after we get past this spike.
+func consumeVizEvents(vizClient *streamingVizClient.Client, doneChan chan bool) {
 	for {
 		select {
-		case streamID = <-relayChan:
-			vizClient.LogRelay(streamID)
+		case peers := <-vizClient.PeersChan:
+			data := vizClient.InitData("peers")
+			data["peers"] = peers
+			vizClient.PostEvent(data)
+		case streamID := <-vizClient.BroadcastChan:
+			data := vizClient.InitData("broadcast")
+			data["streamId"] = streamID
+			vizClient.PostEvent(data)
+		case streamID := <-vizClient.ConsumeChan:
+			data := vizClient.InitData("consume")
+			data["streamId"] = streamID
+			vizClient.PostEvent(data)
+		case streamID := <-vizClient.RelayChan:
+			data := vizClient.InitData("relay")
+			data["streamId"] = streamID
+			vizClient.PostEvent(data)
+		case streamID := <-vizClient.DoneChan:
+			data := vizClient.InitData("done")
+			data["streamId"] = streamID
+			vizClient.PostEvent(data)
 		case <-doneChan:
 			return
 		}
 	}
 }
 
-func registerBzzService(ctx *cli.Context, stack *node.Node, relayChan chan string) {
+func registerBzzService(ctx *cli.Context, stack *node.Node, viz *streamingVizClient.Client) {
 	prvkey := getAccount(ctx, stack)
 
 	chbookaddr := common.HexToAddress(ctx.GlobalString(ChequebookAddrFlag.Name))
@@ -333,7 +354,7 @@ func registerBzzService(ctx *cli.Context, stack *node.Node, relayChan chan strin
 			}
 		}
 
-		return swarm.NewSwarm(ctx, client, bzzconfig, swapEnabled, syncEnabled, cors, relayChan)
+		return swarm.NewSwarm(ctx, client, bzzconfig, swapEnabled, syncEnabled, cors, viz)
 	}
 	if err := stack.Register(boot); err != nil {
 		utils.Fatalf("Failed to register the Swarm service: %v", err)
