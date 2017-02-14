@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/network"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
+	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
 	"golang.org/x/net/context"
 )
 
@@ -58,6 +59,7 @@ type Swarm struct {
 	swapEnabled bool
 	streamer    *streaming.Streamer
 	streamDB    *network.StreamDB
+	viz         *streamingVizClient.Client
 }
 
 type SwarmAPI struct {
@@ -77,7 +79,7 @@ func (self *Swarm) API() *SwarmAPI {
 // creates a new swarm service instance
 // implements node.Service
 // LIVEPEER: Here we can initialize the streamer (handles streaming channels)
-func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.Config, swapEnabled, syncEnabled bool, cors string) (self *Swarm, err error) {
+func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.Config, swapEnabled, syncEnabled bool, cors string, viz *streamingVizClient.Client) (self *Swarm, err error) {
 
 	if bytes.Equal(common.FromHex(config.PublicKey), storage.ZeroKey) {
 		return nil, fmt.Errorf("empty public key")
@@ -134,6 +136,8 @@ func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.
 	}
 
 	self.streamDB = network.NewStreamDB()
+
+	self.viz = viz
 
 	// set up DPA, the cloud storage local access layer
 	dpaChunkStore := storage.NewDpaChunkStore(lstore, self.storage)
@@ -209,10 +213,7 @@ func (self *Swarm) Start(net *p2p.Server) error {
 	}
 
 	if self.config.RTMPPort != "" {
-		//StartRTMPServer spins up a go routine internally.  It would be good to know the convention
-		//around this.  Go routines are spun up all over the place in this codebase, it's a little tough
-		//to understand whether you are in the main thread sometimes (or does that just not matter in Go?)
-		go rtmpapi.StartRtmpServer(self.config.RTMPPort, self.streamer, self.cloud)
+		go rtmpapi.StartRtmpServer(self.config.RTMPPort, self.streamer, self.cloud, self.viz)
 	}
 
 	glog.V(logger.Debug).Infof("Swarm http proxy started on port: %v", self.config.Port)
@@ -238,8 +239,7 @@ func (self *Swarm) Stop() error {
 
 // implements the node.Service interface
 func (self *Swarm) Protocols() []p2p.Protocol {
-	//LIVEPEER: This is the place to add a "streamer" instance, that handles the streaming channels
-	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId, self.streamer, self.streamDB, &self.cloud)
+	proto, err := network.Bzz(self.depo, self.backend, self.hive, self.dbAccess, self.config.Swap, self.config.SyncParams, self.config.NetworkId, self.streamer, self.streamDB, &self.cloud, self.viz)
 	if err != nil {
 		return nil
 	}
