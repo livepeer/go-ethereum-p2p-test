@@ -137,8 +137,6 @@ func NewSwarm(ctx *node.ServiceContext, backend chequebook.Backend, config *api.
 
 	self.streamDB = network.NewStreamDB()
 
-	// Set up the streaming visualization client and pass it in
-	// self.viz = streamingVizClient.NewClient(nodeID)
 	self.viz = viz
 
 	// set up DPA, the cloud storage local access layer
@@ -215,7 +213,6 @@ func (self *Swarm) Start(net *p2p.Server) error {
 	}
 
 	if self.config.RTMPPort != "" {
-		//self.viz = streamingVizClient.NewClient(fmt.Sprintf("%s", net.Self().ID))
 		go rtmpapi.StartRtmpServer(self.config.RTMPPort, self.streamer, self.cloud, self.viz)
 	}
 

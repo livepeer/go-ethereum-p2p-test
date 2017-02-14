@@ -9,6 +9,7 @@ import (
 
 type Client struct {
 	NodeID        string
+	Enabled       bool
 	Endpoint      string
 	PeersChan     chan []string
 	BroadcastChan chan string
@@ -17,10 +18,11 @@ type Client struct {
 	DoneChan      chan string
 }
 
-func NewClient(nodeID string) *Client {
+func NewClient(nodeID string, enabled bool, host string) *Client {
 	return &Client{
 		NodeID:        nodeID,
-		Endpoint:      "http://localhost:8585/event", // Default. Override if you'd like to change,
+		Enabled:       enabled,
+		Endpoint:      fmt.Sprintf("%s/event", host), // Default. Override if you'd like to change,
 		PeersChan:     make(chan []string),
 		BroadcastChan: make(chan string),
 		ConsumeChan:   make(chan string),
@@ -31,9 +33,6 @@ func NewClient(nodeID string) *Client {
 
 func (self *Client) LogPeers(peers []string) {
 	self.PeersChan <- peers
-	//data := self.initData("peers")
-	//data["peers"] = peers
-	//self.postEvent(data)
 }
 
 func (self *Client) LogBroadcast(streamID string) {
@@ -60,16 +59,19 @@ func (self *Client) InitData(eventName string) (data map[string]interface{}) {
 }
 
 func (self *Client) PostEvent(data map[string]interface{}) {
-	enc, _ := json.Marshal(data)
+	// For now just don't actually post the data to a server if viz is not enabled
+	if self.Enabled {
+		enc, _ := json.Marshal(data)
 
-	req, err := http.NewRequest("POST", self.Endpoint, bytes.NewBuffer(enc))
-	req.Header.Set("Content-Type", "application/json")
+		req, err := http.NewRequest("POST", self.Endpoint, bytes.NewBuffer(enc))
+		req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println("Couldn't connect to the event server", err)
-		return
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Println("Couldn't connect to the event server", err)
+			return
+		}
+		defer resp.Body.Close()
 	}
-	defer resp.Body.Close()
 }

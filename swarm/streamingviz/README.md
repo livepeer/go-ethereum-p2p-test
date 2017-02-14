@@ -8,6 +8,10 @@ From the `go-ethereum` root directory, run
 
     go run ./swarm/streamingviz/server/server.go
 
+Start the swarm nodes with the `--viz` flag to allow them to send their info the viz server. The `--vizhost <host>` flag will specify where the server is running (defaults to `http://localhost:8585`).
+
+    swarm --bzzaccount 3e6a791e7b0f32fcafaa5e8fe9840dec66d5daaa --datadir ./4/ --ethapi ./1/geth.ipc --verbosity 4 --maxpeers 1 --bzznetworkid 326 --port 30403 --bzzport 8503 --rtmp 1937 --viz
+
 ## Access the visualization
 
 If the visualization server is running, you can access the visualizaiton at [http://localhost:8585?streamid=\<streamid\>] for any given stream id. Accessing it without the argument will show the entire network, but not any stream data about who is broadcasting or consuming.

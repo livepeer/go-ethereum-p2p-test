@@ -128,6 +128,15 @@ var (
 		Name:  metrics.MetricsEnabledFlag,
 		Usage: "Enable metrics collection and reporting",
 	}
+	VizEnabledFlag = cli.BoolFlag{
+		Name:  "viz",
+		Usage: "true if you want to talk to a metrics visualization server",
+	}
+	VizHostFlag = cli.StringFlag{
+		Name:  "vizhost",
+		Usage: "The url + port to communicate to the visualization server (ex/default 'http://localhost:8585')",
+		Value: "http://localhost:8585",
+	}
 )
 
 func init() {
@@ -204,6 +213,8 @@ Prints the swarm hash of file or directory.
 		// streaming flags
 		RTMPFlag,
 		MetricsEnabledFlag,
+		VizEnabledFlag,
+		VizHostFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Before = func(ctx *cli.Context) error {
@@ -240,7 +251,7 @@ func version(ctx *cli.Context) error {
 func bzzd(ctx *cli.Context) error {
 	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
 
-	vizClient := streamingVizClient.NewClient("") // Assing nodeID after the node starts
+	vizClient := streamingVizClient.NewClient("", ctx.GlobalBool(VizEnabledFlag.Name), ctx.GlobalString(VizHostFlag.Name)) // Assing nodeID after the node starts
 
 	registerBzzService(ctx, stack, vizClient)
 	utils.StartNode(stack)
@@ -293,6 +304,7 @@ func startPeerReporting(node *node.Node, doneChan chan bool, vizClient *streamin
 // Need to do this in the main thread to access the node id, since the
 // protocol doesn't have access to it. Not that clean, but it works for now.
 // Want to remove this to avoid centralization anyway after we get past this spike.
+// The PostEvent() function won't actually send anything to a server if VizEnabled flag isn't present
 func consumeVizEvents(vizClient *streamingVizClient.Client, doneChan chan bool) {
 	for {
 		select {
