@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -41,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/network"
+	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -126,6 +128,15 @@ var (
 		Name:  metrics.MetricsEnabledFlag,
 		Usage: "Enable metrics collection and reporting",
 	}
+	VizEnabledFlag = cli.BoolFlag{
+		Name:  "viz",
+		Usage: "true if you want to talk to a metrics visualization server",
+	}
+	VizHostFlag = cli.StringFlag{
+		Name:  "vizhost",
+		Usage: "The url + port to communicate to the visualization server (ex/default 'http://localhost:8585')",
+		Value: "http://localhost:8585",
+	}
 )
 
 func init() {
@@ -202,6 +213,8 @@ Prints the swarm hash of file or directory.
 		// streaming flags
 		RTMPFlag,
 		MetricsEnabledFlag,
+		VizEnabledFlag,
+		VizHostFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Before = func(ctx *cli.Context) error {
@@ -237,7 +250,10 @@ func version(ctx *cli.Context) error {
 
 func bzzd(ctx *cli.Context) error {
 	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
-	registerBzzService(ctx, stack)
+
+	vizClient := streamingVizClient.NewClient("", ctx.GlobalBool(VizEnabledFlag.Name), ctx.GlobalString(VizHostFlag.Name)) // Assing nodeID after the node starts
+
+	registerBzzService(ctx, stack, vizClient)
 	utils.StartNode(stack)
 	networkId := ctx.GlobalUint64(SwarmNetworkIdFlag.Name)
 	// Add bootnodes as initial peers.
@@ -250,11 +266,75 @@ func bzzd(ctx *cli.Context) error {
 		}
 	}
 
+	// Start consuming visualization events and reporting your peers every 20 seconds.
+	// See comments below near the consumeVizEvents() method
+	vizClient.NodeID = fmt.Sprintf("%s", stack.Server().Self().ID)
+
+	donePeers := make(chan bool)
+	doneEvents := make(chan bool)
+	go consumeVizEvents(vizClient, doneEvents)
+	go startPeerReporting(stack, donePeers, vizClient)
+
 	stack.Wait()
+
+	// Close the peer reporting loop
+	donePeers <- true
+	doneEvents <- true
+
 	return nil
 }
 
-func registerBzzService(ctx *cli.Context, stack *node.Node) {
+func startPeerReporting(node *node.Node, doneChan chan bool, vizClient *streamingVizClient.Client) {
+	tickChan := time.NewTicker(10 * time.Second).C
+	for {
+		select {
+		case <-tickChan:
+			peers := node.Server().PeersInfo()
+			peerIDs := make([]string, 0, len(peers))
+			for _, p := range peers {
+				peerIDs = append(peerIDs, p.ID)
+			}
+			vizClient.LogPeers(peerIDs)
+		case <-doneChan:
+			return
+		}
+	}
+}
+
+// Need to do this in the main thread to access the node id, since the
+// protocol doesn't have access to it. Not that clean, but it works for now.
+// Want to remove this to avoid centralization anyway after we get past this spike.
+// The PostEvent() function won't actually send anything to a server if VizEnabled flag isn't present
+func consumeVizEvents(vizClient *streamingVizClient.Client, doneChan chan bool) {
+	for {
+		select {
+		case peers := <-vizClient.PeersChan:
+			data := vizClient.InitData("peers")
+			data["peers"] = peers
+			vizClient.PostEvent(data)
+		case streamID := <-vizClient.BroadcastChan:
+			data := vizClient.InitData("broadcast")
+			data["streamId"] = streamID
+			vizClient.PostEvent(data)
+		case streamID := <-vizClient.ConsumeChan:
+			data := vizClient.InitData("consume")
+			data["streamId"] = streamID
+			vizClient.PostEvent(data)
+		case streamID := <-vizClient.RelayChan:
+			data := vizClient.InitData("relay")
+			data["streamId"] = streamID
+			vizClient.PostEvent(data)
+		case streamID := <-vizClient.DoneChan:
+			data := vizClient.InitData("done")
+			data["streamId"] = streamID
+			vizClient.PostEvent(data)
+		case <-doneChan:
+			return
+		}
+	}
+}
+
+func registerBzzService(ctx *cli.Context, stack *node.Node, viz *streamingVizClient.Client) {
 	prvkey := getAccount(ctx, stack)
 
 	chbookaddr := common.HexToAddress(ctx.GlobalString(ChequebookAddrFlag.Name))
@@ -285,7 +365,8 @@ func registerBzzService(ctx *cli.Context, stack *node.Node) {
 				utils.Fatalf("Can't connect: %v", err)
 			}
 		}
-		return swarm.NewSwarm(ctx, client, bzzconfig, swapEnabled, syncEnabled, cors)
+
+		return swarm.NewSwarm(ctx, client, bzzconfig, swapEnabled, syncEnabled, cors, viz)
 	}
 	if err := stack.Register(boot); err != nil {
 		utils.Fatalf("Failed to register the Swarm service: %v", err)

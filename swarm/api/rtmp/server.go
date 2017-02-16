@@ -29,6 +29,7 @@ import (
 	//"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
+	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
 
 	"bytes"
 
@@ -67,7 +68,7 @@ func StartSRSServer(srsRtmpPort string, srsHttpPort string) {
 //Spin off a go routine that serves rtmp requests.  For now I think this only handles a single stream.
 //Has to take a http port because we want to support viewing over HLS, flv over http, etc.
 //I recognize the srs stuff is extra.  We can get rid of it when we switch to using ffmpeg.
-func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsHttpPort string, streamer *streaming.Streamer, forwarder storage.CloudStore) {
+func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsHttpPort string, streamer *streaming.Streamer, forwarder storage.CloudStore, viz *streamingVizClient.Client) {
 	if rtmpPort == "" {
 		rtmpPort = "1935"
 	}
@@ -84,6 +85,7 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 		// Parse the streamID from the query param ?streamID=....
 		strmID := conn.URL.Query()["streamID"][0]
 		glog.V(logger.Info).Infof("Got streamID as %v", strmID)
+		viz.LogConsume(strmID)
 		stream, err := streamer.SubscribeToStream(strmID)
 
 		if err != nil {
@@ -104,9 +106,9 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 			//For now, we rely on SRS. The next iteraion will be looking into directly integrating ffmpeg
 			//First, forward the rtmp stream to the local SRS server (always running on .
 			//Then, issue http req through the HLS endpoint.
-
 			stream, _ := streamer.AddNewStream()
 			glog.V(logger.Info).Infof("Added a new stream with id: %v", stream.ID)
+			viz.LogBroadcast(string(stream.ID))
 			dstConn, err := joy4rtmp.Dial("rtmp://localhost:" + srsRtmpPort + "/stream/" + string(stream.ID))
 			if err != nil {
 				glog.V(logger.Error).Infof("Error sending to SRS server: ", err)
@@ -116,8 +118,6 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 
 			//Copy to SRS rtmp
 			go avutil.CopyFile(dstConn, conn)
-			//Kick off goroutine to listen for HLS segments
-			// go rememberHlsSegs(&stream.HlsSegNameMap, stream.HlsSegChan) // this is only used for testing viewer on publisher.  Publisher doesn't need to remember HLS segments
 			//Kick off goroutine to listen for HLS playlist file
 			go getHlsPlaylist("http://localhost:"+srsHttpPort+"/stream/"+string(stream.ID)+".m3u8", time.Duration(0), true, msChan, stream.M3U8Chan)
 			// go getHlsPlaylist("http://localhost:"+srsHttpPort+"/stream/"+string(stream.ID)+".m3u8", time.Duration(0), true, msChan, tmpPlaylistChan)
@@ -129,6 +129,7 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 			//Do regular RTMP stuff - create a new stream, copy the video to the stream.
 			stream, _ := streamer.AddNewStream()
 			glog.V(logger.Info).Infof("Added a new stream with id: %v", stream.ID)
+			viz.LogBroadcast(string(stream.ID))
 
 			//Send video to streamer channels
 			go CopyToChannel(conn, stream)
@@ -318,7 +319,7 @@ func CopyHlsToChannel(stream *streaming.Stream) (err error) {
 		case m3u8 := <-stream.M3U8Chan:
 			CopyPacketsToChannel(0, nil, nil, m3u8, streaming.HlsSegment{}, stream)
 		case hlsSeg := <-stream.HlsSegChan:
-			regex, _ := regexp.Compile("-(\\d)*\\")
+			regex, _ := regexp.Compile("-(\\d)*")
 			match := regex.FindString(hlsSeg.Name)
 			segNumStr := match[1:len(match)]
 			segNum, _ := strconv.Atoi(segNumStr)
