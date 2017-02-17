@@ -74,10 +74,6 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 	}
 	fmt.Println("Starting RTMP Server on port: ", rtmpPort)
 	server := &joy4rtmp.Server{Addr: ":" + rtmpPort}
-	// var localM3u8 string
-	// tmpLocalPlaylistRespChan := make(chan []byte)
-	// tmpSegChan := make(chan Segment)
-	// localTsMap := make(map[string][]byte)
 
 	server.HandlePlay = func(conn *joy4rtmp.Conn) {
 		glog.V(logger.Info).Infof("Trying to play stream at %v", conn.URL)
@@ -113,14 +109,14 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 			if err != nil {
 				glog.V(logger.Error).Infof("Error sending to SRS server: ", err)
 			}
+
+			//To pass segment name from the playlist to the segment download routine.
 			msChan := make(chan *Download, 1024)
-			// tmpPlaylistChan := make(chan []byte)
 
 			//Copy to SRS rtmp
 			go avutil.CopyFile(dstConn, conn)
 			//Kick off goroutine to listen for HLS playlist file
 			go getHlsPlaylist("http://localhost:"+srsHttpPort+"/stream/"+string(stream.ID)+".m3u8", time.Duration(0), true, msChan, stream.M3U8Chan)
-			// go getHlsPlaylist("http://localhost:"+srsHttpPort+"/stream/"+string(stream.ID)+".m3u8", time.Duration(0), true, msChan, tmpPlaylistChan)
 			//Download the segments
 			go downloadHlsSegment(msChan, stream.HlsSegChan)
 			//Copy Hls segments to swarm
@@ -210,12 +206,6 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 				}
 			}
 
-			// keys := make([]string, 0, len(stream.HlsSegNameMap))
-			// for k := range stream.HlsSegNameMap {
-			// 	keys = append(keys, k)
-			// }
-
-			// fmt.Println("Cannot find requested segment.  Available segments: ", keys)
 			w.WriteHeader(500)
 			return
 		} else {
@@ -317,12 +307,14 @@ func CopyHlsToChannel(stream *streaming.Stream) (err error) {
 	for {
 		select {
 		case m3u8 := <-stream.M3U8Chan:
+			// stream.M3U8 = m3u8 //Just for testing
 			CopyPacketsToChannel(0, nil, nil, m3u8, streaming.HlsSegment{}, stream)
 		case hlsSeg := <-stream.HlsSegChan:
 			regex, _ := regexp.Compile("-(\\d)*")
 			match := regex.FindString(hlsSeg.Name)
 			segNumStr := match[1:len(match)]
 			segNum, _ := strconv.Atoi(segNumStr)
+			// stream.HlsSegNameMap[hlsSeg.Name] = hlsSeg.Data //Just for testing
 			CopyPacketsToChannel(int64(segNum), nil, nil, nil, hlsSeg, stream)
 		}
 	}

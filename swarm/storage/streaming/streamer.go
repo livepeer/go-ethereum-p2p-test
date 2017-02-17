@@ -57,6 +57,7 @@ func (self *Stream) PutToDstVideoChan(chunk *VideoChunk) {
 	livepeerChunkInMeter.Mark(1)
 	//Put to the stream
 	if (chunk.HLSSegName != "") && (chunk.HLSSegData != nil) {
+		//Should kick out old segments when the map reaches a certain size.
 		self.HlsSegNameMap[chunk.HLSSegName] = chunk.HLSSegData
 	} else if chunk.M3U8 != nil {
 		self.M3U8 = chunk.M3U8
