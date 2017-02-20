@@ -14,6 +14,10 @@ To look at a list of metrics, use the --metrics flag when starting swarm, and us
 
 `geth monitor --attach ipc:/Users/erictang/Sandbox/swarmdata1/bzzd.ipc livepeer/test livepeer/chunks/`
 
+To enable transcoding, add `?transcode=true` in your RTMP uplink video.  For ease of testing, start SRS manually.  (So you can
+see the output).  To start srs, create a `./objs` directory, and run `./bin/srs -c srs.conf`
+
+
 ## Ethereum Go
 
 Official golang implementation of the Ethereum protocol.

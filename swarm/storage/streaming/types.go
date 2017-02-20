@@ -20,4 +20,7 @@ type VideoChunk struct {
 	Key           storage.Key
 	HeaderStreams []av.CodecData
 	Packet        av.Packet
+	HLSSegData    []byte
+	HLSSegName    string
+	M3U8          []byte
 }

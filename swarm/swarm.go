@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -213,7 +214,16 @@ func (self *Swarm) Start(net *p2p.Server) error {
 	}
 
 	if self.config.RTMPPort != "" {
-		go rtmpapi.StartRtmpServer(self.config.RTMPPort, self.streamer, self.cloud, self.viz)
+		//StartRTMPServer spins up a go routine internally.  It would be good to know the convention
+		//around this.  Go routines are spun up all over the place in this codebase, it's a little tough
+		//to understand whether you are in the main thread sometimes (or does that just not matter in Go?)
+		rtmpPort := self.config.RTMPPort
+		rtmpPortNum, _ := strconv.Atoi(rtmpPort)
+		httpPort := strconv.Itoa(rtmpPortNum + 7000)
+		srsRtmpPort := strconv.Itoa(rtmpPortNum + 500)
+		srsHttpPort := strconv.Itoa(rtmpPortNum + 6000)
+		fmt.Println("Starting http server at port:", httpPort)
+		go rtmpapi.StartVideoServer(rtmpPort, httpPort, srsRtmpPort, srsHttpPort, self.streamer, self.cloud, self.viz)
 	}
 
 	glog.V(logger.Debug).Infof("Swarm http proxy started on port: %v", self.config.Port)

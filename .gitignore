@@ -31,3 +31,10 @@ build/_vendor/pkg
 # travis
 profile.tmp
 profile.cov
+
+#srs
+*.ts
+*.tmp
+*.m3u8
+srs.pid
+*.log

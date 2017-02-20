@@ -36,25 +36,41 @@ func (self *StreamID) SplitComponents() (common.Hash, string) {
 	return common.HexToHash(strStreamID[:originComponentLength]), strStreamID[originComponentLength:]
 }
 
+type HlsSegment struct {
+	Data []byte
+	Name string
+}
+
 // A stream represents one stream
 type Stream struct {
-	SrcVideoChan chan *VideoChunk
-	DstVideoChan chan *VideoChunk
-	lastDstSeq   int64
-	ByteArrChan  chan []byte
-	ID           StreamID
+	SrcVideoChan  chan *VideoChunk
+	DstVideoChan  chan *VideoChunk
+	M3U8Chan      chan []byte
+	HlsSegChan    chan HlsSegment
+	HlsSegNameMap map[string][]byte
+	M3U8          []byte
+	lastDstSeq    int64
+	ID            StreamID
 }
 
 func (self *Stream) PutToDstVideoChan(chunk *VideoChunk) {
 	livepeerChunkInMeter.Mark(1)
-	select {
-	case self.DstVideoChan <- chunk:
-		if self.lastDstSeq < chunk.Seq-1 {
-			fmt.Printf("Chunk skipped at %d\n", chunk.Seq)
-			livepeerChunkSkipMeter.Mark(1)
+	//Put to the stream
+	if (chunk.HLSSegName != "") && (chunk.HLSSegData != nil) {
+		//Should kick out old segments when the map reaches a certain size.
+		self.HlsSegNameMap[chunk.HLSSegName] = chunk.HLSSegData
+	} else if chunk.M3U8 != nil {
+		self.M3U8 = chunk.M3U8
+	} else {
+		select {
+		case self.DstVideoChan <- chunk:
+			if self.lastDstSeq < chunk.Seq-1 {
+				fmt.Printf("Chunk skipped at %d\n", chunk.Seq)
+				livepeerChunkSkipMeter.Mark(1)
+			}
+			self.lastDstSeq = chunk.Seq
+		default:
 		}
-		self.lastDstSeq = chunk.Seq
-	default:
 	}
 }
 
@@ -107,9 +123,12 @@ func (self *Streamer) saveStreamForId(streamID StreamID) (stream *Stream, err er
 	}
 
 	self.Streams[streamID] = &Stream{
-		SrcVideoChan: make(chan *VideoChunk, 10),
-		DstVideoChan: make(chan *VideoChunk, 10),
-		ID:           streamID,
+		SrcVideoChan:  make(chan *VideoChunk, 10),
+		DstVideoChan:  make(chan *VideoChunk, 10),
+		M3U8Chan:      make(chan []byte),
+		HlsSegChan:    make(chan HlsSegment),
+		HlsSegNameMap: make(map[string][]byte),
+		ID:            streamID,
 	}
 
 	return self.Streams[streamID], nil
@@ -118,6 +137,10 @@ func (self *Streamer) saveStreamForId(streamID StreamID) (stream *Stream, err er
 func (self *Streamer) GetStream(nodeID common.Hash, id string) (stream *Stream, err error) {
 	// TODO, return error if it doesn't exist
 	return self.Streams[MakeStreamID(nodeID, id)], nil
+}
+
+func (self *Streamer) GetStreamByStreamID(streamID StreamID) (stream *Stream, err error) {
+	return self.Streams[streamID], nil
 }
 
 func VideoChunkToByteArr(chunk VideoChunk) []byte {
