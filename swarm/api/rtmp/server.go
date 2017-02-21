@@ -8,14 +8,17 @@
 package rtmp
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -78,8 +81,14 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 	server.HandlePlay = func(conn *joy4rtmp.Conn) {
 		glog.V(logger.Info).Infof("Trying to play stream at %v", conn.URL)
 
-		// Parse the streamID from the query param ?streamID=....
-		strmID := conn.URL.Query()["streamID"][0]
+		// Parse the streamID from the path host:port/stream/{streamID}
+		var strmID string
+		regex, _ := regexp.Compile("\\/stream\\/([[:alpha:]]|\\d)*")
+		match := regex.FindString(conn.URL.Path)
+		if match != "" {
+			strmID = strings.Replace(match, "/stream/", "", -1)
+		}
+
 		glog.V(logger.Info).Infof("Got streamID as %v", strmID)
 		viz.LogConsume(strmID)
 		stream, err := streamer.SubscribeToStream(strmID)
@@ -107,7 +116,8 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 			viz.LogBroadcast(string(stream.ID))
 			dstConn, err := joy4rtmp.Dial("rtmp://localhost:" + srsRtmpPort + "/stream/" + string(stream.ID))
 			if err != nil {
-				glog.V(logger.Error).Infof("Error sending to SRS server: ", err)
+				glog.V(logger.Error).Infof("Error connecting to SRS server: ", err)
+				return
 			}
 
 			//To pass segment name from the playlist to the segment download routine.
@@ -132,23 +142,18 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 		}
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/stream/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("In handleFunc, Path: ", r.URL.Path)
 
 		var strmID string
-		// Parse the streamID from the query param ?streamID=....
-		if len(r.URL.Query()["streamID"]) > 0 {
-			strmID = r.URL.Query()["streamID"][0]
-		} else {
-			//This is a total hack.
-			//Path is: /stream/133bd3c4e543e3cd53e2cf2b366eeeace7eae483b651b8b1e2a2072b250864fc62b0bac9f64df186c4fb74d427f136647dcf0ead9198dc7d9f881b1d5c2d2132-0.ts
-			regex, _ := regexp.Compile("\\/([[:alpha:]]|\\d)*\\-")
-			match := regex.FindString(r.URL.Path)
-			if match != "" {
-				strmID = match[1 : len(match)-1]
-			}
+		//Example path: /stream/133bd3c4e543e3cd53e2cf2b366eeeace7eae483b651b8b1e2a2072b250864fc62b0bac9f64df186c4fb74d427f136647dcf0ead9198dc7d9f881b1d5c2d2132-0.ts
+		regex, _ := regexp.Compile("\\/stream\\/([[:alpha:]]|\\d)*")
+		match := regex.FindString(r.URL.Path)
+		if match != "" {
+			strmID = strings.Replace(match, "/stream/", "", -1)
 		}
-		// glog.V(logger.Info).Infof("Got streamID as %v", strmID)
+
+		glog.V(logger.Info).Infof("Got streamID as %v", strmID)
 
 		if strings.HasSuffix(r.URL.Path, ".m3u8") == true {
 			stream, err := streamer.GetStreamByStreamID(streaming.StreamID(strmID))
@@ -162,19 +167,28 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 				forwarder.Stream(strmID)
 			}
 
-			//HLS request. Example: http://localhost:8080/stream/live.m3u8?streamID=teststreamid
-			for {
+			//HLS request. Example: http://localhost:8080/stream/streamid.m3u8
+			countdown := 12
+			for countdown > 0 {
 				if stream.M3U8 != nil {
 					break
 				} else {
 					fmt.Println("Waiting for playlist")
 					time.Sleep(time.Second * 5)
 				}
+				countdown = countdown - 1
 			}
-			w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+			if countdown == 0 {
+				w.WriteHeader(404)
+				w.Write([]byte("Cannot find playlist for HLS"))
+			}
+			// w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+			w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(r.URL.Path)))
+			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Write(stream.M3U8)
+			fmt.Println("Writing Playlist in handler: ", string(stream.M3U8))
 			// go rememberHlsSegs(&stream.HlsSegNameMap, stream.HlsSegChan) // this is only used for testing viewer on publisher.  Publisher doesn't need to remember HLS segments
-			return
+			// return
 		} else if strings.HasSuffix(r.URL.Path, ".ts") == true {
 			//HLS video segments
 
@@ -193,21 +207,25 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 
 				if stream.HlsSegNameMap[filename] != nil {
 					fmt.Println("Writing requested segment: ", filename)
-					w.WriteHeader(200)
-					w.Header().Set("Content-Type", "video/MP2T")
-					w.Header().Set("Content-Length", string(len(stream.HlsSegNameMap[filename])))
+					// w.Header().Set("Content-Type", "video/MP2T")
+					w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(r.URL.Path)))
+					// w.Header().Set("Content-Length", string(len(stream.HlsSegNameMap[filename])))
 					w.Write(stream.HlsSegNameMap[filename])
+					// w.WriteHeader(http.StatusOK)
 					//Should probably remove the seg at some point.  For now let's just keep it around
 					//in case another client requests
-					return
+					break
 				} else {
 					fmt.Println("Waiting 1s for segment", filename, ", ", countdown)
 					time.Sleep(time.Second * 1)
 				}
+				countdown = countdown - 1
 			}
 
-			w.WriteHeader(500)
-			return
+			if countdown == 0 {
+				w.WriteHeader(500)
+				return
+			}
 		} else {
 			//Assume rtmp
 			fmt.Println("Assumign rtmp: ", r.URL.Path)
@@ -229,6 +247,37 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 			//Cannot kick off a go routine here because the ResponseWriter is not a pointer (so a copy of the writer doesn't make any sense)
 			CopyFromChannel(muxer, stream)
 		}
+	})
+
+	http.HandleFunc("/streamIDs", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Getting stream ids")
+		streams := streamer.GetAllStreams()
+		js, err := json.Marshal(streams)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
+		return
+	})
+
+	http.HandleFunc("/streamEndpoint", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Getting stream endpoint")
+		resp := map[string]string{"url": "rtmp://localhost:" + rtmpPort + "/live/stream"}
+		js, _ := json.Marshal(resp)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
+	})
+
+	//For serving static HTML files (web-based broadcaster and viewer)
+	fs := http.FileServer(http.Dir("./static"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/static/broadcast.html", 301)
 	})
 
 	go http.ListenAndServe(":"+httpPort, nil)
@@ -376,8 +425,7 @@ func CopyPacketsToChannel(seq int64, src av.PacketReader, headerStreams []av.Cod
 		}
 	default:
 	}
-	// }
-	glog.V(logger.Info).Infof("Returning from the copyPacketsToChannel thread")
+	// glog.V(logger.Info).Infof("Returning from the copyPacketsToChannel thread")
 	return
 }
 
@@ -426,6 +474,7 @@ func downloadHlsSegment(dlc chan *Download, segChan chan streaming.HlsSegment) {
 			Data: buf.Bytes(),
 			Name: filename,
 		}
+		fmt.Println("Got HLS segment: ", filename)
 
 		segChan <- *seg
 		resp.Body.Close()
