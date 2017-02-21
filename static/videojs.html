@@ -22,13 +22,25 @@
 
             $("#btn-play-hls").click(function(){
                 var stream_id = $("#txt-stream-id").val();
-                var url = "http://" + query.host + "/stream/" + stream_id + ".m3u8"
+                var format = $('#r-video-format input:radio:checked').val();
+                // var url;
+                var conf;
+                if (format == "rtmp") {
+                    conf = {
+                        src: "http://" + query.host + "/stream/" + stream_id + "",
+                        type: 'video/x-flv'
+                    };
+                }   
+                else if (format == "hls") {
+                    conf = {
+                        src: "http://" + query.host + "/stream/" + stream_id + ".m3u8",
+                        type: 'application/x-mpegURL'
+                    };
+                } else {
+                    console.log("Invalid video format: " + format);
+                }
 
                 var player = videojs('livepeer-video');
-                var conf = {
-                    src: url,
-                    type: 'application/x-mpegURL'
-                };
                 console.log(conf);
                 player.src(conf);
                 player.play();
@@ -58,6 +70,15 @@
     <div class="form-inline">
         Stream ID:
         <input type="text" id="txt-stream-id" class="input-xxlarge" value="">
+    </div>
+    <div class="form-inline">
+        <div class="radio" id="r-video-format">
+            Video Format:
+            <label><input type="radio" name="videoformat" value="hls">HLS</label>
+            <label><input type="radio" name="videoformat" value="rtmp">RTMP</label>
+        </div>
+    </div>
+    <div class="form-inline">
         <button class="btn btn-primary" id="btn-play-hls"> Play </button>
     </div>
     <hr/>
