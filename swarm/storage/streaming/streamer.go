@@ -182,23 +182,6 @@ func ByteArrInVideoChunk(arr []byte) VideoChunk {
 }
 
 func TestChunkEncoding(chunk VideoChunk) {
-	// var buf bytes.Buffer
-	// var newbuf bytes.Buffer
-	// gob.Register(VideoChunk{})
-	// gob.Register(h264parser.CodecData{})
-	// gob.Register(aacparser.CodecData{})
-	// enc := gob.NewEncoder(&buf)
-	// dec := gob.NewDecoder(&newbuf)
-	// err := enc.Encode(chunk)
-	// if err != nil {
-	// 	fmt.Println("Error converting bytearr to chunk: ", err)
-	// }
-
-	// newbuf.Write(buf.Bytes())
-	// var newChunk VideoChunk
-	// dec.Decode(&newChunk)
-
-	// return buf.Bytes()
 	bytes := VideoChunkToByteArr(chunk)
 	newChunk := ByteArrInVideoChunk(bytes)
 	fmt.Println("chunk: ", chunk)

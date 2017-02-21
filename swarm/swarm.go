@@ -37,8 +37,8 @@ import (
 	httpapi "github.com/ethereum/go-ethereum/swarm/api/http"
 	"github.com/ethereum/go-ethereum/swarm/network"
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 	"github.com/livepeer/lpms"
-	"github.com/livepeer/lpms/streaming"
 	streamingVizClient "github.com/livepeer/streamingviz/client"
 	"golang.org/x/net/context"
 )

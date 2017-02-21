@@ -22,9 +22,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/livepeer/lpms/streaming"
 
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 )
 
 const requesterCount = 3

@@ -45,7 +45,7 @@ import (
 	bzzswap "github.com/ethereum/go-ethereum/swarm/services/swap"
 	"github.com/ethereum/go-ethereum/swarm/services/swap/swap"
 	"github.com/ethereum/go-ethereum/swarm/storage"
-	"github.com/livepeer/lpms/streaming"
+	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 	streamingVizClient "github.com/livepeer/streamingviz/client"
 )
 
