@@ -229,13 +229,16 @@ func StartVideoServer(rtmpPort string, httpPort string, srsRtmpPort string, srsH
 		} else {
 			//Assume rtmp
 			fmt.Println("Assumign rtmp: ", r.URL.Path)
-			stream, err := streamer.SubscribeToStream(strmID)
-			if err != nil {
-				glog.V(logger.Info).Infof("Error subscribing to stream %v", err)
-				return
+			stream, err := streamer.GetStreamByStreamID(streaming.StreamID(strmID))
+			if stream == nil {
+				stream, err = streamer.SubscribeToStream(strmID)
+				if err != nil {
+					glog.V(logger.Info).Infof("Error subscribing to stream %v", err)
+					return
+				}
+				//Send subscribe request
+				forwarder.Stream(strmID)
 			}
-			//Send subscribe request
-			forwarder.Stream(strmID)
 
 			w.Header().Set("Content-Type", "video/x-flv")
 			w.Header().Set("Transfer-Encoding", "chunked")
