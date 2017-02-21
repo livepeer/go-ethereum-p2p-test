@@ -1,8 +1,6 @@
 package network
 
-import (
-	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
-)
+import "github.com/ethereum/go-ethereum/swarm/storage/streaming"
 
 type StreamDB struct {
 	DownstreamRequesters map[streaming.StreamID][]*peer
