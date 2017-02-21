@@ -35,10 +35,10 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/swarm/api"
 	httpapi "github.com/ethereum/go-ethereum/swarm/api/http"
-	rtmpapi "github.com/ethereum/go-ethereum/swarm/api/rtmp"
 	"github.com/ethereum/go-ethereum/swarm/network"
 	"github.com/ethereum/go-ethereum/swarm/storage"
-	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
+	"github.com/livepeer/lpms"
+	"github.com/livepeer/lpms/streaming"
 	streamingVizClient "github.com/livepeer/streamingviz/client"
 	"golang.org/x/net/context"
 )
@@ -223,7 +223,7 @@ func (self *Swarm) Start(net *p2p.Server) error {
 		srsRtmpPort := strconv.Itoa(rtmpPortNum + 500)
 		srsHttpPort := strconv.Itoa(rtmpPortNum + 6000)
 		fmt.Println("Starting http server at port:", httpPort)
-		go rtmpapi.StartVideoServer(rtmpPort, httpPort, srsRtmpPort, srsHttpPort, self.streamer, self.cloud, self.viz)
+		go lpms.StartVideoServer(rtmpPort, httpPort, srsRtmpPort, srsHttpPort, self.streamer, self.cloud, self.viz)
 	}
 
 	glog.V(logger.Debug).Infof("Swarm http proxy started on port: %v", self.config.Port)
