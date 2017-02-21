@@ -46,7 +46,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/services/swap/swap"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
-	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
+	streamingVizClient "github.com/livepeer/streamingviz/client"
 )
 
 const (

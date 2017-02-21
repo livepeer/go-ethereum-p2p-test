@@ -39,7 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/network"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
-	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
+	streamingVizClient "github.com/livepeer/streamingviz/client"
 	"golang.org/x/net/context"
 )
 

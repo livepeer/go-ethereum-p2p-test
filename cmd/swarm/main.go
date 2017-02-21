@@ -42,7 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/network"
-	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
+	streamingVizClient "github.com/livepeer/streamingviz/client"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -272,7 +272,8 @@ func bzzd(ctx *cli.Context) error {
 
 	donePeers := make(chan bool)
 	doneEvents := make(chan bool)
-	go consumeVizEvents(vizClient, doneEvents)
+
+	vizClient.ConsumeEvents(doneEvents)
 	go startPeerReporting(stack, donePeers, vizClient)
 
 	stack.Wait()
@@ -284,8 +285,9 @@ func bzzd(ctx *cli.Context) error {
 	return nil
 }
 
+// Call peer reporting event at some fixed interval like 20 seconds for the visualization server
 func startPeerReporting(node *node.Node, doneChan chan bool, vizClient *streamingVizClient.Client) {
-	tickChan := time.NewTicker(10 * time.Second).C
+	tickChan := time.NewTicker(20 * time.Second).C
 	for {
 		select {
 		case <-tickChan:
@@ -295,39 +297,6 @@ func startPeerReporting(node *node.Node, doneChan chan bool, vizClient *streamin
 				peerIDs = append(peerIDs, p.ID)
 			}
 			vizClient.LogPeers(peerIDs)
-		case <-doneChan:
-			return
-		}
-	}
-}
-
-// Need to do this in the main thread to access the node id, since the
-// protocol doesn't have access to it. Not that clean, but it works for now.
-// Want to remove this to avoid centralization anyway after we get past this spike.
-// The PostEvent() function won't actually send anything to a server if VizEnabled flag isn't present
-func consumeVizEvents(vizClient *streamingVizClient.Client, doneChan chan bool) {
-	for {
-		select {
-		case peers := <-vizClient.PeersChan:
-			data := vizClient.InitData("peers")
-			data["peers"] = peers
-			vizClient.PostEvent(data)
-		case streamID := <-vizClient.BroadcastChan:
-			data := vizClient.InitData("broadcast")
-			data["streamId"] = streamID
-			vizClient.PostEvent(data)
-		case streamID := <-vizClient.ConsumeChan:
-			data := vizClient.InitData("consume")
-			data["streamId"] = streamID
-			vizClient.PostEvent(data)
-		case streamID := <-vizClient.RelayChan:
-			data := vizClient.InitData("relay")
-			data["streamId"] = streamID
-			vizClient.PostEvent(data)
-		case streamID := <-vizClient.DoneChan:
-			data := vizClient.InitData("done")
-			data["streamId"] = streamID
-			vizClient.PostEvent(data)
 		case <-doneChan:
 			return
 		}

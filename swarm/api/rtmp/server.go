@@ -29,7 +29,7 @@ import (
 	//"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
-	streamingVizClient "github.com/ethereum/go-ethereum/swarm/streamingviz/client"
+	streamingVizClient "github.com/livepeer/streamingviz/client"
 
 	"bytes"
 
@@ -376,8 +376,7 @@ func CopyPacketsToChannel(seq int64, src av.PacketReader, headerStreams []av.Cod
 		}
 	default:
 	}
-	// }
-	glog.V(logger.Info).Infof("Returning from the copyPacketsToChannel thread")
+
 	return
 }
 
