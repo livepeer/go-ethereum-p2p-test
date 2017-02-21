@@ -143,6 +143,14 @@ func (self *Streamer) GetStreamByStreamID(streamID StreamID) (stream *Stream, er
 	return self.Streams[streamID], nil
 }
 
+func (self *Streamer) GetAllStreams() []StreamID {
+	keys := make([]StreamID, 0, len(self.Streams))
+	for k := range self.Streams {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 func VideoChunkToByteArr(chunk VideoChunk) []byte {
 	var buf bytes.Buffer
 	gob.Register(VideoChunk{})

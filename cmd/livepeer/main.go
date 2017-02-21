@@ -55,7 +55,7 @@ func livepeer(ctx *cli.Context) error {
 func stream(ctx *cli.Context) error {
 	port := ctx.GlobalString(LivepeerPortFlag.Name)
 	streamID := ctx.Args()[0]
-	rtmpURL := fmt.Sprintf("rtmp://localhost:%v/movie?streamID=%v", port, streamID)
+	rtmpURL := fmt.Sprintf("rtmp://localhost:%v/stream/%v", port, streamID)
 
 	cmd := exec.Command("ffplay", rtmpURL)
 	err := cmd.Start()
