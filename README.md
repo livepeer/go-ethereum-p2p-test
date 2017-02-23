@@ -22,9 +22,9 @@ The Livepeer POC requires ffmpeg. On OSX:
 
 `brew install ffmpeg --with-ffplay`
 
-`git clone https://github.com/livepeer/go-ethereum.git`
-`cd go-ethereum`
-`go install ./cmd/geth`
+`git clone https://github.com/livepeer/go-ethereum.git`  
+`cd go-ethereum`  
+`go install ./cmd/geth`  
 `go install ./cmd/livepeer`
 
 ## Setup
@@ -51,7 +51,7 @@ running a private network.
 
 ## Usage
 
-To run the node with video streaming, use the --rtmp flag to start the swarm nodes.  For example:
+To run the node with video streaming, use the --rtmp flag when starting the livepeer node.  For example:
 
 `livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --bzznetworkid 412 --rtmp 1935`
 
@@ -82,7 +82,8 @@ see the output).  To start srs, create a `./objs` directory, and run `./bin/srs 
 
 ## Metrics and monitoring
 
-To look at a list of metrics, use the --metrics flag when starting swarm, and use `geth monitor` to monitor metrics.  For example:
+To look at a list of metrics, use the --metrics flag when starting swarm, and use `geth monitor` to monitor metrics.  For example:  
+
 `livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --verbosity 4 --maxpeers 3 --port 30402 --bzznetworkid 412 --rtmp 1935 --metrics`
 
 `geth monitor --attach ipc:/Users/erictang/Sandbox/swarmdata1/bzzd.ipc
