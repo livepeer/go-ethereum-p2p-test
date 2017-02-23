@@ -83,7 +83,9 @@ var (
 	EthAPIFlag = cli.StringFlag{
 		Name:  "ethapi",
 		Usage: "URL of the Ethereum API provider",
-		Value: node.DefaultIPCEndpoint("geth"),
+		//Value: node.DefaultIPCEndpoint("geth"),
+		// Set to '' as a default since I don't see why we need geth yet
+		Value: "",
 	}
 	SwarmApiFlag = cli.StringFlag{
 		Name:  "bzzapi",
