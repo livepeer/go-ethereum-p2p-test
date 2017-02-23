@@ -30,7 +30,7 @@ The Livepeer POC requires ffmpeg. On OSX:
 ## Setup
 
 If you would like to simply connect to the Livepeer Toynet (test
-network with id=326), no setup is necessary. Simply run the command:
+network with id=326), **no setup is necessary.** Simply run the command:
 
 `livepeer`
 
@@ -38,23 +38,19 @@ This will prompt you to create a new ethereum account, and unlock it
 with a password.
 
 If you would like to control where the data for Livepeer is stored,
-which account is used, and other options such as private network ids,
-specific ports, read on.
-
-Specify the data directory:
-
-`livepeer --datadir ./<datadir>`
-
-Generate a new account address and use it:
+and which account is used in each data directory (you may want to do
+this if you're running multiple nodes), then create a new account in a
+new directory:
 
 `geth --datadir <datadir>  account new`
 
-Copy the output account address, perhaps into an environment variable $BZZKEY
+Copy the output account address, perhaps into an environment variable
+$BZZKEY. You can then use this when you start livepeer
 
-`livepeer --bzzaccount $BZZKEY --datadir <datadir> --ethapi $DATADIR/geth.ipc`
+`livepeer --bzzaccount $BZZKEY --datadir <datadir>`
 
 By default this should connect you to the Livepeer POC network. For
-detailed instructions, refer to the following section.
+detailed instructions on all the options you can pass, refer to the following section.
 
 ### Detailed setup including running a private network
 
@@ -66,12 +62,18 @@ running a private network.
 
 ## Usage
 
+The simplest way to start Livepeer and connect to the test network is
+just by running:
+
+`livepeer`
+
 By default, starting Livepeer will launch an RTMP interface on
 port 1935. You can override this with the --rtmp option:
 
 `livepeer --rtmp 1937`
 
-or more control:
+or more control over the account, data directory, and network you
+connect to:
 
 `livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --lpnetworkid 412 --rtmp 1935`
 
@@ -102,7 +104,9 @@ see the output).  To start srs, create a `./objs` directory, and run `./bin/srs 
 
 ## Metrics and monitoring
 
-To look at a list of metrics, use the --metrics flag when starting swarm, and use `geth monitor` to monitor metrics.  For example:
+To look at a list of metrics, use the --metrics flag when starting
+swarm, and use `geth monitor` to monitor metrics.  For example:
+
 `livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --verbosity 4 --maxpeers 3 --port 30402 --lpnetworkid 412 --rtmp 1935 --metrics`
 
 `geth monitor --attach ipc:/Users/erictang/Sandbox/swarmdata1/bzzd.ipc
@@ -114,7 +118,6 @@ streamID. See the documentation at the
 [streamingviz repository](https://github.com/livepeer/streamingviz). To
 start a livepeer node that reports to the visualization server, add
 the `--viz` flag:
-
 
 `livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --lpnetworkid 412 --rtmp 1935 --viz`
 
