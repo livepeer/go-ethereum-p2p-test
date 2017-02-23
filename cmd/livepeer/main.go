@@ -27,6 +27,8 @@ import (
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/network"
+
+	lpn "github.com/ethereum/go-ethereum/livepeer/network"
 	streamingVizClient "github.com/livepeer/streamingviz/client"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -122,6 +124,11 @@ var (
 		Usage: "The url + port to communicate to the visualization server (ex/default 'http://localhost:8585')",
 		Value: "http://localhost:8585",
 	}
+	LivepeerNetworkIdFlag = cli.IntFlag{
+		Name:  "lpnetworkid",
+		Usage: "Network identifier (integer, default 326=livepeer toy net)",
+		Value: lpn.NetworkId,
+	}
 )
 
 func init() {
@@ -190,6 +197,7 @@ The output of this command is supposed to be machine-readable.
 		MetricsEnabledFlag,
 		VizEnabledFlag,
 		VizHostFlag,
+		LivepeerNetworkIdFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Before = func(ctx *cli.Context) error {
@@ -230,7 +238,7 @@ func livepeer(ctx *cli.Context) error {
 
 	registerBzzService(ctx, stack, vizClient)
 	utils.StartNode(stack)
-	networkId := ctx.GlobalUint64(SwarmNetworkIdFlag.Name)
+	networkId := ctx.GlobalUint64(LivepeerNetworkIdFlag.Name)
 	// Add bootnodes as initial peers.
 	if ctx.GlobalIsSet(utils.BootnodesFlag.Name) {
 		bootnodes := strings.Split(ctx.GlobalString(utils.BootnodesFlag.Name), ",")
@@ -304,7 +312,7 @@ func registerBzzService(ctx *cli.Context, stack *node.Node, viz *streamingVizCli
 		bzzdir = stack.InstanceDir()
 	}
 
-	bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, ctx.GlobalUint64(SwarmNetworkIdFlag.Name), ctx.String("rtmp"))
+	bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, ctx.GlobalUint64(LivepeerNetworkIdFlag.Name), ctx.String("rtmp"))
 	if err != nil {
 		utils.Fatalf("unable to configure swarm: %v", err)
 	}
