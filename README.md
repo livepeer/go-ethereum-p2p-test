@@ -22,9 +22,9 @@ The Livepeer POC requires ffmpeg. On OSX:
 
 `brew install ffmpeg --with-ffplay`
 
-`git clone https://github.com/livepeer/go-ethereum.git`
-`cd go-ethereum`
-`go install ./cmd/geth`
+`git clone https://github.com/livepeer/go-ethereum.git`  
+`cd go-ethereum`  
+`go install ./cmd/geth`  
 `go install ./cmd/livepeer`
 
 ## Setup
