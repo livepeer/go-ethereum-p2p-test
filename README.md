@@ -29,14 +29,29 @@ The Livepeer POC requires ffmpeg. On OSX:
 
 ## Setup
 
-If you already have an ethereum node running, you can create a new
-node account, and launch Livepeer with the following commands.
+If you would like to simply connect to the Livepeer Toynet (test
+network with id=326), no setup is necessary. Simply run the command:
 
-`geth --datadir ./<your-geth-data-directory> account new`
+`livepeer`
 
-Copy the output account address, perhpas into an environment variable $BZZKEY
+This will prompt you to create a new ethereum account, and unlock it
+with a password.
 
-`livepeer --bzzaccount $BZZKEY --datadir <your-geth-data-directory> --ethapi $DATADIR/geth.ipc`
+If you would like to control where the data for Livepeer is stored,
+which account is used, and other options such as private network ids,
+specific ports, read on.
+
+Specify the data directory:
+
+`livepeer --datadir ./<datadir>`
+
+Generate a new account address and use it:
+
+`geth --datadir <datadir>  account new`
+
+Copy the output account address, perhaps into an environment variable $BZZKEY
+
+`livepeer --bzzaccount $BZZKEY --datadir <datadir> --ethapi $DATADIR/geth.ipc`
 
 By default this should connect you to the Livepeer POC network. For
 detailed instructions, refer to the following section.
@@ -51,14 +66,19 @@ running a private network.
 
 ## Usage
 
-To run the node with video streaming, use the --rtmp flag to start the swarm nodes.  For example:
+By default, starting Livepeer will launch an RTMP interface on
+port 1935. You can override this with the --rtmp option:
 
-`livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --bzznetworkid 412 --rtmp 1935`
+`livepeer --rtmp 1937`
+
+or more control:
+
+`livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --lpnetworkid 412 --rtmp 1935`
 
 To run a second node, so that you can test streaming to one another,
 specify a new `--port`, `--rtmp`, `--bzzport`, `--datadir`, and `--bzzaccount` argument:
 
-`livepeer --bzzaccount $BZZKEY2 --datadir $DATADIR2 --ethapi $DATADIR/geth.ipc --verbosity 4 --maxpeers 3 --port 30402 --bzznetworkid 412 --rtmp 1936`
+`livepeer --bzzaccount $BZZKEY2 --datadir $DATADIR2 --ethapi $DATADIR/geth.ipc --verbosity 4 --maxpeers 3 --port 30402 --lpnetworkid 412 --rtmp 1936`
 
 Now that you have two nodes running, make sure they are talking to
 each other, then stream into one node and play from the other.  You
@@ -83,7 +103,7 @@ see the output).  To start srs, create a `./objs` directory, and run `./bin/srs 
 ## Metrics and monitoring
 
 To look at a list of metrics, use the --metrics flag when starting swarm, and use `geth monitor` to monitor metrics.  For example:
-`livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --verbosity 4 --maxpeers 3 --port 30402 --bzznetworkid 412 --rtmp 1935 --metrics`
+`livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --verbosity 4 --maxpeers 3 --port 30402 --lpnetworkid 412 --rtmp 1935 --metrics`
 
 `geth monitor --attach ipc:/Users/erictang/Sandbox/swarmdata1/bzzd.ipc
 livepeer/test livepeer/chunks/`
@@ -96,7 +116,7 @@ start a livepeer node that reports to the visualization server, add
 the `--viz` flag:
 
 
-`livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --bzznetworkid 412 --rtmp 1935 --viz`
+`livepeer --bzzaccount $BZZKEY --datadir $DATADIR --ethapi $DATADIR/geth.ipc --lpnetworkid 412 --rtmp 1935 --viz`
 
 ## Additional functionality available through Swarm and Ethereum
 

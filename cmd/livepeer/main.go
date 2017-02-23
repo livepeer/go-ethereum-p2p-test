@@ -138,6 +138,7 @@ func init() {
 	utils.ListenPortFlag.Value = 30399
 	utils.IPCPathFlag.Value = utils.DirectoryString{Value: "bzzd.ipc"}
 	utils.IPCApiFlag.Value = "admin, bzz, chequebook, debug, rpc, web3"
+	utils.LPNetFlag.Value = "true"
 
 	// Set up the cli app.
 	app.Action = livepeer
@@ -179,6 +180,7 @@ The output of this command is supposed to be machine-readable.
 		utils.IPCDisabledFlag,
 		utils.IPCApiFlag,
 		utils.IPCPathFlag,
+		utils.LPNetFlag,
 		// bzzd-specific flags
 		CorsStringFlag,
 		EthAPIFlag,
@@ -347,7 +349,10 @@ func registerBzzService(ctx *cli.Context, stack *node.Node, viz *streamingVizCli
 func getAccount(ctx *cli.Context, stack *node.Node) *ecdsa.PrivateKey {
 	keyid := ctx.GlobalString(SwarmAccountFlag.Name)
 	if keyid == "" {
-		utils.Fatalf("Option %q is required", SwarmAccountFlag.Name)
+		//utils.Fatalf("Option %q is required", SwarmAccountFlag.Name)
+		// No account given, try using the first account
+		keyid = findOrGenerateFirstAccount(stack.AccountManager(), ctx)
+		fmt.Println("Found the account", keyid)
 	}
 	// Try to load the arg as a hex key file.
 	if key, err := crypto.LoadECDSA(keyid); err == nil {
@@ -356,6 +361,21 @@ func getAccount(ctx *cli.Context, stack *node.Node) *ecdsa.PrivateKey {
 	}
 	// Otherwise try getting it from the keystore.
 	return decryptStoreAccount(stack.AccountManager(), keyid)
+}
+
+func findOrGenerateFirstAccount(accman *accounts.Manager, ctx *cli.Context) (keyid string) {
+	acc, err := accman.AccountByIndex(0)
+	if err != nil {
+		// Don't have an account, need to generate
+		password := getPassPhrase("Need to create an account. Please give a password. Do not forget this password.", true, 0, utils.MakePasswordList(ctx))
+
+		acc, err = accman.NewAccount(password)
+		if err != nil {
+			utils.Fatalf("Failed to create account: %v", err)
+		}
+		fmt.Printf("New Address: {%x}\n", acc.Address)
+	}
+	return acc.Address.Hex()
 }
 
 func decryptStoreAccount(accman *accounts.Manager, account string) *ecdsa.PrivateKey {
@@ -393,6 +413,36 @@ func promptPassphrase(prompt string) string {
 	password, err := console.Stdin.PromptPassword("Passphrase: ")
 	if err != nil {
 		utils.Fatalf("Failed to read passphrase: %v", err)
+	}
+	return password
+}
+
+// getPassPhrase retrieves the passwor associated with an account, either fetched
+// from a list of preloaded passphrases, or requested interactively from the user.
+func getPassPhrase(prompt string, confirmation bool, i int, passwords []string) string {
+	// If a list of passwords was supplied, retrieve from them
+	if len(passwords) > 0 {
+		if i < len(passwords) {
+			return passwords[i]
+		}
+		return passwords[len(passwords)-1]
+	}
+	// Otherwise prompt the user for the password
+	if prompt != "" {
+		fmt.Println(prompt)
+	}
+	password, err := console.Stdin.PromptPassword("Passphrase: ")
+	if err != nil {
+		utils.Fatalf("Failed to read passphrase: %v", err)
+	}
+	if confirmation {
+		confirm, err := console.Stdin.PromptPassword("Repeat passphrase: ")
+		if err != nil {
+			utils.Fatalf("Failed to read passphrase confirmation: %v", err)
+		}
+		if password != confirm {
+			utils.Fatalf("Passphrases do not match")
+		}
 	}
 	return password
 }
