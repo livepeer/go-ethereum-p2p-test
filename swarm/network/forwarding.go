@@ -17,6 +17,7 @@
 package network
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -118,16 +119,67 @@ func (self *forwarder) Stream(id string) {
 		OriginNode: nodeID,
 		StreamID:   streamID,
 		Id:         streaming.RequestStreamMsgID,
-		// VideoChunk: *chunk,
 	}
 
 	key := nodeID.Bytes()
 
 	peers := self.hive.getPeers(key, 1)
+	if len(peers) != 1 {
+		fmt.Println("ERROR: Stream Request Sent To %d Peers\n", len(peers))
+	}
 	for _, p := range peers {
 		p.stream(msg)
 	}
 }
+
+// Transcode request - this is to request for a node to become a transcoder.  The node should send an Ack to confirm.
+func (self *forwarder) Transcode(id string) {
+	fmt.Println("Forwarding Transcode Request")
+	s := streaming.StreamID(id)
+	nodeID, streamID := s.SplitComponents()
+	msg := &transcodeRequestMsgData{
+		OriginNode: nodeID,
+		StreamID:   streamID,
+		Id:         streaming.TranscodeRequestMsgID,
+	}
+	// msg := &streamRequestMsgData{
+	// 	OriginNode: nodeID,
+	// 	StreamID:   streamID,
+	// 	Id:         streaming.TranscodeRequestMsgID,
+	// }
+
+	key := nodeID.Bytes()
+
+	peers := self.hive.getPeers(key, 1)
+	if len(peers) != 1 {
+		fmt.Println("ERROR: Transcode Request Sent To %d Peers\n", len(peers))
+	}
+	for _, p := range peers {
+		p.transcode(msg)
+	}
+}
+
+// func (self *forwarder) TranscodeAck(id string, p *peer) {
+// 	s := streaming.StreamID(id)
+// 	nodeID, streamID := s.SplitComponents()
+// 	msg := &streamRequestMsgData{
+// 		OriginNode: nodeID,
+// 		StreamID:   streamID,
+// 		Id:         streaming.TranscodeAckMsgID,
+// 	}
+
+// 	// peer.transcode
+
+// 	key := nodeID.Bytes()
+
+// 	peers := self.hive.getPeers(key, 1)
+// 	if len(peers) != 1 {
+// 		fmt.Println("ERROR: Transcode Request Sent To %d Peers\n", len(peers))
+// 	}
+// 	for _, p := range peers {
+// 		p.stream(msg)
+// 	}
+// }
 
 // once a chunk is found deliver it to its requesters unless timed out
 func (self *forwarder) Deliver(chunk *storage.Chunk) {

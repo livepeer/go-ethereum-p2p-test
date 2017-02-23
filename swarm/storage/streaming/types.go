@@ -9,6 +9,8 @@ const (
 	RequestStreamMsgID = iota
 	DeliverStreamMsgID
 	EOFStreamMsgID
+	TranscodeRequestMsgID
+	TranscodeAckMsgID
 )
 
 // VideoChunk is an encapsulation for video packets / headers.

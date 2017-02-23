@@ -51,7 +51,7 @@ import (
 
 const (
 	Version            = 0
-	ProtocolLength     = uint64(9)
+	ProtocolLength     = uint64(11)
 	ProtocolMaxMsgSize = 10 * 1024 * 1024
 	NetworkId          = 3
 )
@@ -350,6 +350,13 @@ func (self *bzz) handle() error {
 		// direct response with peers, TODO: sort this out
 		self.hive.peers(&req)
 
+	case transcodeRequestMsg:
+		var req transcodeRequestMsgData
+		if err := msg.Decode(&req); err != nil {
+			return self.protoError(ErrDecode, "<- %v: %v", msg, err)
+		}
+		fmt.Println("Got Transcode Request: ", req)
+
 	case peersMsg:
 		// response to lookups and immediate response to retrieve requests
 		// dispatches new peer data to the hive that adds them to KADDB
@@ -590,6 +597,11 @@ func (self *bzz) store(req *storeRequestMsgData) error {
 // send streamRequestMsg
 func (self *bzz) stream(req *streamRequestMsgData) error {
 	return self.send(streamRequestMsg, req)
+}
+
+// send transcodeRequestMsg
+func (self *bzz) transcode(req *transcodeRequestMsgData) error {
+	return self.send(transcodeRequestMsg, req)
 }
 
 func (self *bzz) syncRequest() error {
