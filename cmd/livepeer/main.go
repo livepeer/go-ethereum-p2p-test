@@ -316,7 +316,7 @@ func registerBzzService(ctx *cli.Context, stack *node.Node, viz *streamingVizCli
 		bzzdir = stack.InstanceDir()
 	}
 
-	bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, ctx.GlobalUint64(LivepeerNetworkIdFlag.Name), ctx.String("rtmp"))
+	bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, ctx.GlobalUint64(LivepeerNetworkIdFlag.Name), ctx.GlobalString(RTMPFlag.Name))
 	if err != nil {
 		utils.Fatalf("unable to configure swarm: %v", err)
 	}
