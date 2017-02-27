@@ -84,7 +84,9 @@ func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey, n
 		BzzKey:        keyhex,
 		EnsRoot:       ensRootAddress,
 		NetworkId:     networkId,
+		RTMPPort:      rtmpPort,
 	}
+
 	data, err = ioutil.ReadFile(confpath)
 
 	if err != nil {
@@ -118,7 +120,6 @@ func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey, n
 		self.EnsRoot = ensRootAddress
 	}
 
-	self.RTMPPort = rtmpPort
 	return
 }
 
