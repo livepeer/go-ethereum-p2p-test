@@ -127,6 +127,10 @@ var (
 		Name:  "testnet",
 		Usage: "Ropsten network: pre-configured test network",
 	}
+	LPNetFlag = cli.StringFlag{
+		Name:  "lpnet",
+		Usage: "Livepeer Toy Network: pre-configured test network. --true to use lpnet keystore instead of default ethereum keystore",
+	}
 	DevModeFlag = cli.BoolFlag{
 		Name:  "dev",
 		Usage: "Developer mode: pre-configured private network with several debugging flags",
@@ -426,6 +430,8 @@ func MakeDataDir(ctx *cli.Context) string {
 		// TODO: choose a different location outside of the regular datadir.
 		if ctx.GlobalBool(TestNetFlag.Name) {
 			return filepath.Join(path, "testnet")
+		} else if ctx.GlobalString(LPNetFlag.Name) == "true" {
+			return filepath.Join(path, "livepeernet")
 		}
 		return path
 	}

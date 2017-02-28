@@ -277,12 +277,6 @@ func (self *bzz) handle() error {
 
 				// Log the relay
 				self.viz.LogRelay(string(concatedStreamID))
-				//self.relayChan <- string(concatedStreamID)
-				/*if self.vizClient == nil {
-					fmt.Println("VIZCLIENT IS NIL")
-				} else {
-					self.vizClient.LogRelay(string(concatedStreamID))
-				}*/
 			}
 			// Aready subscribed to this stream. Add this peer to the downstream requesters
 			self.streamDB.AddDownstreamPeer(concatedStreamID, &peer{bzz: self})
@@ -294,6 +288,7 @@ func (self *bzz) handle() error {
 			}
 
 		} else {
+			// In this case req.Id == DeliverStreamMsgID || EOFStreamMsgID, so there is data in the req.SData field
 			chunk := streaming.ByteArrInVideoChunk(req.SData)
 
 			downstreamRequesters := self.streamDB.DownstreamRequesters[concatedStreamID]
@@ -310,9 +305,10 @@ func (self *bzz) handle() error {
 
 			stream.PutToDstVideoChan(&chunk)
 
-			// Close the source channel if this was an EOF msg
+			// Close the source channel and delete the stream if this was an EOF msg
 			if req.Id == streaming.EOFStreamMsgID {
 				close(stream.SrcVideoChan)
+				self.streamer.DeleteStream(concatedStreamID)
 			}
 		}
 

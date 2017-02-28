@@ -151,6 +151,10 @@ func (self *Streamer) GetAllStreams() []StreamID {
 	return keys
 }
 
+func (self *Streamer) DeleteStream(streamID StreamID) {
+	delete(self.Streams, streamID)
+}
+
 func VideoChunkToByteArr(chunk VideoChunk) []byte {
 	var buf bytes.Buffer
 	gob.Register(VideoChunk{})
