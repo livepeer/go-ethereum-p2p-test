@@ -45,6 +45,7 @@ const (
 	paymentMsg                 // 0x08
 	streamRequestMsg           // 0x09
 	transcodeRequestMsg        // 0x10
+	transcodeAckMsg            // 0x11
 )
 
 /*
@@ -89,10 +90,24 @@ type streamRequestMsgData struct {
  Transcode requests are sent to peers who can become trascoding nodes, and those nodes send back acks
 */
 type transcodeRequestMsgData struct {
-	OriginNode common.Hash
-	StreamID   string
-	Id         uint64
-	from       *peer
+	OriginNode     common.Hash
+	OriginStreamID string
+	TranscodeID    common.Hash
+	Id             uint64
+	from           *peer
+	Formats        []string
+	Bitrates       []string
+	CodecIn        string
+	CodecOut       []string
+}
+
+type transcodeAckMsgData struct {
+	OriginNode     common.Hash
+	OriginStreamID string
+	TranscodeID    common.Hash
+	Id             uint64
+	from           *peer
+	NewStreamIDs   []string
 }
 
 /*

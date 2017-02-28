@@ -46,6 +46,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/services/swap/swap"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
+	lpmsIo "github.com/livepeer/lpms/io"
 	streamingVizClient "github.com/livepeer/streamingviz/client"
 )
 
@@ -67,6 +68,7 @@ const (
 	ErrSwap
 	ErrSync
 	ErrUnwanted
+	ErrTranscode
 )
 
 var errorToString = map[int]string{
@@ -355,7 +357,70 @@ func (self *bzz) handle() error {
 		if err := msg.Decode(&req); err != nil {
 			return self.protoError(ErrDecode, "<- %v: %v", msg, err)
 		}
+		req.from = &peer{bzz: self}
+
 		fmt.Println("Got Transcode Request: ", req)
+		key := req.TranscodeID.Bytes()
+		glog.V(logger.Info).Infof("Requesting a peer with transcodeID: %x", req.TranscodeID)
+
+		// Note this means the routing won't necessarily be routed to the absolute closes node in the network,
+		// since the knowledge of the local node can be constrained.  However, for now, a local optimum is enough
+		// to get the job done - since all we need is a single node that will do the transcoding work.
+		peers := self.hive.getPeersCloserThanSelf(key, 1)
+
+		if len(peers) == 1 {
+			//Remember the upstream requester, forward to downstream peer
+			glog.V(logger.Info).Infof("Peer we got is: %v", peers[0].Addr())
+			fmt.Println("Forwarding to the right transcoder: ", peers[0].Addr())
+			self.streamDB.AddUpstreamTranscodeRequester(req.TranscodeID.Bytes(), &peer{bzz: self})
+			peers[0].transcode(&req)
+		} else if len(peers) == 0 {
+			//You ARE the transcoder!
+			fmt.Println("I AM the transcoder.")
+			from := &peer{bzz: self}
+			transcodedVidChan := make(chan *streaming.VideoChunk, 10) //This channel needs to be closed at some point.  When is transcoding done?
+
+			//Subscribe to the original video
+			originalStream, err := self.streamer.GetStreamByStreamID(streaming.MakeStreamID(req.OriginNode, req.OriginStreamID))
+			if originalStream == nil {
+				originalStream, err = self.streamer.SubscribeToStream(string(streaming.MakeStreamID(req.OriginNode, req.OriginStreamID)))
+				if err != nil {
+					glog.V(logger.Error).Infof("Error subscribing to stream %v", err)
+					return self.protoError(ErrTranscode, "Error subscribing to stream %v", err)
+				}
+				//Send subscribe request
+				(*self.forwarder).Stream(string(streaming.MakeStreamID(req.OriginNode, req.OriginStreamID)))
+			}
+
+			transcodedStream, err := self.streamer.AddNewStream()
+			// go lpmsIo.Transcode(originalStream.DstVideoChan, transcodedVidChan, streaming.StreamID(req.OriginStreamID), req.Formats[0], req.Bitrates[0], req.CodecIn, req.CodecOut[0])
+			go lpmsIo.Transcode(originalStream.DstVideoChan, transcodedVidChan, transcodedStream.ID, req.Formats[0], req.Bitrates[0], req.CodecIn, req.CodecOut[0])
+			go lpmsIo.CopyChannelToChannel(transcodedVidChan, transcodedStream.SrcVideoChan)
+
+			transcodedID := transcodedStream.ID
+			d := &transcodeAckMsgData{
+				NewStreamIDs: []string{string(transcodedID)},
+			}
+			fmt.Println("Sending ack...")
+			from.transcodeAck(d)
+
+		} else {
+			return self.protoError(ErrTranscode, "Error - Got %d downstream transcoders from the swarm.", len(peers))
+		}
+
+	case transcodeAckMsg:
+		var req transcodeAckMsgData
+		if err := msg.Decode(&req); err != nil {
+			return self.protoError(ErrDecode, "<- %v: %v", msg, err)
+		}
+		//Check local map to see if you need to pass it back to upstream requester
+		upstreamPeer := self.streamDB.UpstreamTranscodeRequesters[string(req.TranscodeID.Bytes())]
+		if upstreamPeer != nil {
+			fmt.Println("Forwarding Transcode Ack to upstream peer")
+			upstreamPeer.transcodeAck(&req)
+		} else {
+			fmt.Println("Got Transcode Ack: ", req)
+		}
 
 	case peersMsg:
 		// response to lookups and immediate response to retrieve requests
@@ -602,6 +667,11 @@ func (self *bzz) stream(req *streamRequestMsgData) error {
 // send transcodeRequestMsg
 func (self *bzz) transcode(req *transcodeRequestMsgData) error {
 	return self.send(transcodeRequestMsg, req)
+}
+
+// send transcodeAckMsg
+func (self *bzz) transcodeAck(req *transcodeAckMsgData) error {
+	return self.send(transcodeAckMsg, req)
 }
 
 func (self *bzz) syncRequest() error {

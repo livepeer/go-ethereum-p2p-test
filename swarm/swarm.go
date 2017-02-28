@@ -222,7 +222,6 @@ func (self *Swarm) Start(net *p2p.Server) error {
 		httpPort := strconv.Itoa(rtmpPortNum + 7000)
 		srsRtmpPort := strconv.Itoa(rtmpPortNum + 500)
 		srsHttpPort := strconv.Itoa(rtmpPortNum + 6000)
-		fmt.Println("Starting http server at port:", httpPort)
 		go lpms.StartVideoServer(rtmpPort, httpPort, srsRtmpPort, srsHttpPort, self.streamer, self.cloud, self.viz)
 	}
 

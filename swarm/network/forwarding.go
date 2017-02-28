@@ -21,6 +21,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 
@@ -133,53 +134,40 @@ func (self *forwarder) Stream(id string) {
 }
 
 // Transcode request - this is to request for a node to become a transcoder.  The node should send an Ack to confirm.
-func (self *forwarder) Transcode(id string) {
+func (self *forwarder) Transcode(streamId string, transcodeId common.Hash, formats []string, bitrates []string, codecin string, codeout []string) {
 	fmt.Println("Forwarding Transcode Request")
-	s := streaming.StreamID(id)
+	s := streaming.StreamID(streamId)
 	nodeID, streamID := s.SplitComponents()
 	msg := &transcodeRequestMsgData{
-		OriginNode: nodeID,
-		StreamID:   streamID,
-		Id:         streaming.TranscodeRequestMsgID,
+		OriginNode:     nodeID,
+		OriginStreamID: streamID,
+		TranscodeID:    transcodeId,
+		Id:             streaming.TranscodeRequestMsgID,
+		Formats:        formats,
+		Bitrates:       bitrates,
+		CodecIn:        codecin,
+		CodecOut:       codeout,
 	}
-	// msg := &streamRequestMsgData{
-	// 	OriginNode: nodeID,
-	// 	StreamID:   streamID,
-	// 	Id:         streaming.TranscodeRequestMsgID,
-	// }
 
-	key := nodeID.Bytes()
-
-	peers := self.hive.getPeers(key, 1)
-	if len(peers) != 1 {
-		fmt.Println("ERROR: Transcode Request Sent To %d Peers\n", len(peers))
-	}
-	for _, p := range peers {
-		p.transcode(msg)
+	glog.V(logger.Info).Infof("In forwarding func, getting peer with transcodeId: %x", transcodeId)
+	// peers := self.hive.getPeers(transcodeId.Bytes(), 0)
+	peers := self.hive.getPeersCloserThanSelf(transcodeId.Bytes(), 1)
+	if len(peers) > 0 {
+		for _, p := range peers {
+			fmt.Println("Sending transcode req to peer: %v", p.Addr())
+			glog.V(logger.Info).Infof("Distance between peer and transcodeId: %d", proximity(common.Hash(transcodeId), common.Hash(p.Addr())))
+			p.transcode(msg)
+		}
+		// fmt.Println("ERROR: Transcode Request Sent To %d Peers.  Should only be 1.\n", len(peers))
+	} else {
+		fmt.Println("I AM the transcoder.")
+		// d := &transcodeAckMsgData{}
+		// from := &peer{bzz: self}
+		fmt.Println("Sleep for 5 seconds, then ack")
+		time.Sleep(time.Second * 5)
+		// from.transcodeAck(d)
 	}
 }
-
-// func (self *forwarder) TranscodeAck(id string, p *peer) {
-// 	s := streaming.StreamID(id)
-// 	nodeID, streamID := s.SplitComponents()
-// 	msg := &streamRequestMsgData{
-// 		OriginNode: nodeID,
-// 		StreamID:   streamID,
-// 		Id:         streaming.TranscodeAckMsgID,
-// 	}
-
-// 	// peer.transcode
-
-// 	key := nodeID.Bytes()
-
-// 	peers := self.hive.getPeers(key, 1)
-// 	if len(peers) != 1 {
-// 		fmt.Println("ERROR: Transcode Request Sent To %d Peers\n", len(peers))
-// 	}
-// 	for _, p := range peers {
-// 		p.stream(msg)
-// 	}
-// }
 
 // once a chunk is found deliver it to its requesters unless timed out
 func (self *forwarder) Deliver(chunk *storage.Chunk) {

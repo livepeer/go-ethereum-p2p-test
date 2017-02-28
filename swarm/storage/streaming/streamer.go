@@ -8,18 +8,18 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/nareix/joy4/av"
-	"github.com/nareix/joy4/codec/aacparser"
-	"github.com/nareix/joy4/codec/h264parser"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/nareix/joy4/av"
+	"github.com/nareix/joy4/codec/aacparser"
+	"github.com/nareix/joy4/codec/h264parser"
 )
 
 // The ID for a stream, consists of the concatenation of the
 // NodeID and a unique ID string of the
 type StreamID string
+type TranscodeID string
 
 func MakeStreamID(nodeID common.Hash, id string) StreamID {
 	return StreamID(fmt.Sprintf("%x%v", nodeID[:], id))
@@ -181,12 +181,12 @@ func ByteArrInVideoChunk(arr []byte) VideoChunk {
 	return chunk
 }
 
-func TestChunkEncoding(chunk VideoChunk) {
-	bytes := VideoChunkToByteArr(chunk)
-	newChunk := ByteArrInVideoChunk(bytes)
-	fmt.Println("chunk: ", chunk)
-	fmt.Println("newchunk: ", newChunk)
-}
+// func TestChunkEncoding(chunk VideoChunk) {
+// 	bytes := VideoChunkToByteArr(chunk)
+// 	newChunk := ByteArrInVideoChunk(bytes)
+// 	fmt.Println("chunk: ", chunk)
+// 	fmt.Println("newchunk: ", newChunk)
+// }
 
 func randomStreamID() common.Hash {
 	rand.Seed(time.Now().UnixNano())
