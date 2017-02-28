@@ -389,17 +389,35 @@ func (self *bzz) handle() error {
 			}
 
 			transcodedStream, err := self.streamer.AddNewStream()
-			go lpmsIo.Transcode(originalStream.DstVideoChan, transcodedVidChan, transcodedStream.ID, req.Formats[0], req.Bitrates[0], req.CodecIn, req.CodecOut[0])
+			err = lpmsIo.Transcode(originalStream.DstVideoChan, transcodedVidChan, transcodedStream.ID, req.Formats[0], req.Bitrates[0], req.CodecIn, req.CodecOut[0])
 			go lpmsIo.CopyChannelToChannel(transcodedVidChan, transcodedStream.SrcVideoChan)
 
-			transcodedID := transcodedStream.ID
-			d := &transcodeAckMsgData{
-				OriginNode:     req.OriginNode,
-				OriginStreamID: req.OriginStreamID,
-				NewStreamIDs:   []string{string(transcodedID)},
+			if err != nil {
+				self.streamer.DeleteStream(transcodedStream.ID)
+				ack := &transcodeAckMsgData{
+					OriginNode:     req.OriginNode,
+					OriginStreamID: req.OriginStreamID,
+				}
+				glog.V(logger.Error).Infof("Got error during transcoding, sending empty ack.  %s", err)
+				from.transcodeAck(ack)
+			} else {
+				transcodedID := transcodedStream.ID
+				tsd := transcodedStreamData{
+					StreamID: string(transcodedID),
+					Format:   req.Formats[0],
+					Bitrate:  req.Bitrates[0],
+					CodecIn:  req.CodecIn,
+					CodecOut: req.CodecOut[0],
+				}
+				ack := &transcodeAckMsgData{
+					OriginNode:     req.OriginNode,
+					OriginStreamID: req.OriginStreamID,
+					NewStreamIDs:   []transcodedStreamData{tsd},
+				}
+				glog.V(logger.Info).Infof("Sending Ack...")
+				from.transcodeAck(ack)
+
 			}
-			glog.V(logger.Info).Infof("Sending Ack...")
-			from.transcodeAck(d)
 		} else {
 			return self.protoError(ErrTranscode, "Error - Got %d downstream transcoders from the swarm.", len(peers))
 		}
@@ -411,15 +429,25 @@ func (self *bzz) handle() error {
 		}
 		//Check local map to see if you need to pass it back to upstream requester
 		upstreamPeer := self.streamDB.UpstreamTranscodeRequesters[streaming.MakeStreamID(req.OriginNode, req.OriginStreamID)]
-		for k, _ := range self.streamDB.UpstreamTranscodeRequesters {
-			fmt.Println("Ack db key: ", k)
-		}
-		fmt.Println("Peer for Id: ", upstreamPeer, streaming.MakeStreamID(req.OriginNode, req.OriginStreamID))
+		// for k, _ := range self.streamDB.UpstreamTranscodeRequesters {
+		// 	fmt.Println("Ack db key: ", k)
+		// }
+		// fmt.Println("Peer for Id: ", upstreamPeer, streaming.MakeStreamID(req.OriginNode, req.OriginStreamID))
 		if upstreamPeer != nil {
 			glog.V(logger.Info).Infof("Forwarding Transcode Ack to upstream peer")
 			upstreamPeer.transcodeAck(&req)
 		} else {
 			glog.V(logger.Info).Infof("Got Transcode Ack: ", req)
+			if len(req.NewStreamIDs) == 0 {
+				//Transcode failed.  Need to:
+				//1. Send a EOF packet to close the RTMP stream to current requester
+				//2. Request for another transcoder (Maybe just call forwarder.Transcode() again?)
+			} else {
+				for _, newID := range req.NewStreamIDs {
+					self.streamDB.AddTranscodedStream(streaming.MakeStreamID(req.OriginNode, req.OriginStreamID), newID)
+					glog.V(logger.Info).Infof("Transcoded Stream: ", newID)
+				}
+			}
 		}
 
 	case peersMsg:

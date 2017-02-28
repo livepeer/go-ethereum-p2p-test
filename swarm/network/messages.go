@@ -107,7 +107,15 @@ type transcodeAckMsgData struct {
 	TranscodeID    common.Hash
 	Id             uint64
 	from           *peer
-	NewStreamIDs   []string
+	NewStreamIDs   []transcodedStreamData
+}
+
+type transcodedStreamData struct {
+	StreamID string
+	Format   string
+	Bitrate  string
+	CodecIn  string
+	CodecOut string
 }
 
 /*
