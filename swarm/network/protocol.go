@@ -367,8 +367,8 @@ func (self *bzz) handle() error {
 		if len(peers) == 1 {
 			//Remember the upstream requester, forward to downstream peer
 			glog.V(logger.Info).Infof("Peer we got is: %v", peers[0].Addr())
-			fmt.Println("Forwarding to the right transcoder: ", peers[0].Addr())
-			self.streamDB.AddUpstreamTranscodeRequester(req.TranscodeID.Bytes(), &peer{bzz: self})
+			fmt.Println("Forwarding to the closer node: ", peers[0].Addr())
+			self.streamDB.AddUpstreamTranscodeRequester(streaming.MakeStreamID(req.OriginNode, req.OriginStreamID), &peer{bzz: self})
 			peers[0].transcode(&req)
 		} else if len(peers) == 0 {
 			//You ARE the transcoder!
@@ -389,17 +389,17 @@ func (self *bzz) handle() error {
 			}
 
 			transcodedStream, err := self.streamer.AddNewStream()
-			// go lpmsIo.Transcode(originalStream.DstVideoChan, transcodedVidChan, streaming.StreamID(req.OriginStreamID), req.Formats[0], req.Bitrates[0], req.CodecIn, req.CodecOut[0])
 			go lpmsIo.Transcode(originalStream.DstVideoChan, transcodedVidChan, transcodedStream.ID, req.Formats[0], req.Bitrates[0], req.CodecIn, req.CodecOut[0])
 			go lpmsIo.CopyChannelToChannel(transcodedVidChan, transcodedStream.SrcVideoChan)
 
 			transcodedID := transcodedStream.ID
 			d := &transcodeAckMsgData{
-				NewStreamIDs: []string{string(transcodedID)},
+				OriginNode:     req.OriginNode,
+				OriginStreamID: req.OriginStreamID,
+				NewStreamIDs:   []string{string(transcodedID)},
 			}
-			fmt.Println("Sending ack...")
+			glog.V(logger.Info).Infof("Sending Ack...")
 			from.transcodeAck(d)
-
 		} else {
 			return self.protoError(ErrTranscode, "Error - Got %d downstream transcoders from the swarm.", len(peers))
 		}
@@ -410,12 +410,16 @@ func (self *bzz) handle() error {
 			return self.protoError(ErrDecode, "<- %v: %v", msg, err)
 		}
 		//Check local map to see if you need to pass it back to upstream requester
-		upstreamPeer := self.streamDB.UpstreamTranscodeRequesters[string(req.TranscodeID.Bytes())]
+		upstreamPeer := self.streamDB.UpstreamTranscodeRequesters[streaming.MakeStreamID(req.OriginNode, req.OriginStreamID)]
+		for k, _ := range self.streamDB.UpstreamTranscodeRequesters {
+			fmt.Println("Ack db key: ", k)
+		}
+		fmt.Println("Peer for Id: ", upstreamPeer, streaming.MakeStreamID(req.OriginNode, req.OriginStreamID))
 		if upstreamPeer != nil {
-			fmt.Println("Forwarding Transcode Ack to upstream peer")
+			glog.V(logger.Info).Infof("Forwarding Transcode Ack to upstream peer")
 			upstreamPeer.transcodeAck(&req)
 		} else {
-			fmt.Println("Got Transcode Ack: ", req)
+			glog.V(logger.Info).Infof("Got Transcode Ack: ", req)
 		}
 
 	case peersMsg:

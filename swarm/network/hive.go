@@ -401,3 +401,15 @@ func (self *Hive) peers(req *retrieveRequestMsgData) {
 func (self *Hive) String() string {
 	return self.kad.String()
 }
+
+func proximity(one, other common.Hash) (ret int) {
+	for i := 0; i < len(one); i++ {
+		oxo := one[i] ^ other[i]
+		for j := 0; j < 8; j++ {
+			if (uint8(oxo)>>uint8(7-j))&0x01 != 0 {
+				return i*8 + j
+			}
+		}
+	}
+	return len(one) * 8
+}

@@ -150,12 +150,13 @@ func (self *forwarder) Transcode(streamId string, transcodeId common.Hash, forma
 	}
 
 	glog.V(logger.Info).Infof("In forwarding func, getting peer with transcodeId: %x", transcodeId)
-	// peers := self.hive.getPeers(transcodeId.Bytes(), 0)
-	peers := self.hive.getPeersCloserThanSelf(transcodeId.Bytes(), 1)
+	//We always try to branch out at least 1 node, so that the requested node can NEVER be the transcoding node
+	peers := self.hive.getPeers(transcodeId.Bytes(), 1)
+	// peers := self.hive.getPeersCloserThanSelf(transcodeId.Bytes(), 1)
 	if len(peers) > 0 {
 		for _, p := range peers {
 			fmt.Println("Sending transcode req to peer: %v", p.Addr())
-			glog.V(logger.Info).Infof("Distance between peer and transcodeId: %d", proximity(common.Hash(transcodeId), common.Hash(p.Addr())))
+			// glog.V(logger.Info).Infof("Distance between peer and transcodeId: %d", proximity(common.Hash(transcodeId), common.Hash(p.Addr())))
 			p.transcode(msg)
 		}
 		// fmt.Println("ERROR: Transcode Request Sent To %d Peers.  Should only be 1.\n", len(peers))
