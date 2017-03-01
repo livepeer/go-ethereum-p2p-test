@@ -13,6 +13,11 @@
             width:80px;
             padding-right:20px;
         }
+
+        .form-group {
+            margin-top:5px;
+            margin-bottom:5px;
+        }
     </style>
 </head>
 <body>
@@ -35,7 +40,7 @@
         <span id="txt_log_msg">Configure your settings, press 'broadcast'</span>
     </div>
 
-    <form class="form-horizontal">
+    <div class="form-horizontal">
         <div class="form-group">
             <label class="col-sm-2 control-label">Settings:</label>
             <div class="col-sm-10">
@@ -44,17 +49,17 @@
             </div>
         </div>
         <div class="form-group">
-            <label class="col-sm-2 control-label">URL:</label>
+            <label class="col-sm-2 control-label">Local Stream URL:</label>
             <div class="col-sm-10">
                 <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
                 <button class="btn btn-primary" id="btn_stream">Stream</button>
-                <button class="btn btn-primary" id="btn_broadcast">Broadcast</button>
             </div>
         </div>
         <div class="form-group">
             <label class="col-sm-2 control-label">RTMP Video ID:</label>
             <div class="col-sm-10">
                 <input type="text" id="txt_streamid" class="input-xxlarge" value=""></input>
+                <button class="btn btn-primary" id="btn_broadcast">Broadcast</button>
             </div>
         </div>
         <div class="form-group">
@@ -64,13 +69,13 @@
             </div>
         </div>
         <div class="form-group">
-            <label class="col-sm-2 control-label">Player Port:</label>
+            <label class="col-sm-2 control-label">Player Addr:</label>
             <div class="col-sm-10">
-                <input type="text" id="txt_player_port" class="input-xxlarge" value=""></input>
+                <input type="text" id="txt_player_addr" class="input-xxlarge" value=""></input>
                 <button class="btn btn-primary" id="btn_launch_player">Launch Player</button>
             </div>
         </div>
-    </form>
+    </div>
 
     <div id="video_modal" class="modal hide fade">
         <div class="modal-header">
@@ -257,6 +262,8 @@
             return;
         }
 
+        $("#txt_player_addr").val("http://" + query.host + "/static/videojs.html");
+
         $.getJSON('/streamEndpoint', function(jd) {
             $("#txt_url").val(jd.url);
         }).fail(function(err) {
@@ -264,9 +271,15 @@
         });
 
         $("#btn_launch_player").click(function() {
-            var url = "http://localhost:" + $("#txt_player_port").val() + "/static/videojs.html?streamID="+$("#txt_streamid").val();
-            var win = window.open(url, '_blank');
-            win.focus();
+            // var url = "http://localhost:" + $("#txt_player_port").val() + "/static/videojs.html?streamID="+$("#txt_streamid").val();
+            if ($("#txt_player_addr").val() == "") {
+                error(0, "Need to provide a player addr");
+            } else {
+                var url = $("#txt_player_addr").val();
+                console.log(url);
+                var win = window.open(url, '_blank');
+                win.focus();
+            }
         });
 
         $("#btn_video_settings").click(function(){
@@ -297,7 +310,7 @@
         // $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
 
         // start the publisher.
-        srs_publisher = new SrsPublisher("local_publisher", 480, 320);
+        srs_publisher = new SrsPublisher("local_publisher", 430, 185);
         srs_publisher.on_publisher_ready = function(cameras, microphones) {
             srs_publisher_initialize_page(
                     cameras, microphones,

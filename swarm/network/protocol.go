@@ -376,16 +376,17 @@ func (self *bzz) handle() error {
 			from := &peer{bzz: self}
 			transcodedVidChan := make(chan *streaming.VideoChunk, 10) //This channel needs to be closed at some point.  When is transcoding done?
 
+			originalStreamID := streaming.MakeStreamID(req.OriginNode, req.OriginStreamID)
 			//Subscribe to the original video
-			originalStream, err := self.streamer.GetStreamByStreamID(streaming.MakeStreamID(req.OriginNode, req.OriginStreamID))
+			originalStream, err := self.streamer.GetStreamByStreamID(originalStreamID)
 			if originalStream == nil {
-				originalStream, err = self.streamer.SubscribeToStream(string(streaming.MakeStreamID(req.OriginNode, req.OriginStreamID)))
+				originalStream, err = self.streamer.SubscribeToStream(string(originalStreamID))
 				if err != nil {
 					glog.V(logger.Error).Infof("Error subscribing to stream %v", err)
 					return self.protoError(ErrTranscode, "Error subscribing to stream %v", err)
 				}
 				//Send subscribe request
-				(*self.forwarder).Stream(string(streaming.MakeStreamID(req.OriginNode, req.OriginStreamID)))
+				(*self.forwarder).Stream(string(originalStreamID))
 			}
 
 			transcodedStream, err := self.streamer.AddNewStream()

@@ -105,7 +105,6 @@ type transcodeAckMsgData struct {
 	OriginNode     common.Hash
 	OriginStreamID string
 	TranscodeID    common.Hash
-	Id             uint64
 	from           *peer
 	NewStreamIDs   []transcodedStreamData
 }
