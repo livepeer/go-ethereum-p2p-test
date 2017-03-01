@@ -390,8 +390,10 @@ func (self *bzz) handle() error {
 			}
 
 			transcodedStream, err := self.streamer.AddNewStream()
-			err = lpmsIo.Transcode(originalStream.DstVideoChan, transcodedVidChan, transcodedStream.ID, req.Formats[0], req.Bitrates[0], req.CodecIn, req.CodecOut[0])
+			err = lpmsIo.Transcode(originalStream.DstVideoChan, transcodedVidChan, transcodedStream.ID, req.Formats[0], req.Bitrates[0], req.CodecIn, req.CodecOut[0], originalStream.CloseChan)
 			go lpmsIo.CopyChannelToChannel(transcodedVidChan, transcodedStream.SrcVideoChan)
+
+			//TODO: Need to spin up a Go Routine to monitor HLS playlist - if the past 10 are the same, close the transcodeStream
 
 			if err != nil {
 				self.streamer.DeleteStream(transcodedStream.ID)
