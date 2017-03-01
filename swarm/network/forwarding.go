@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 
+	"github.com/ethereum/go-ethereum/swarm/network/kademlia"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 )
@@ -125,7 +126,7 @@ func (self *forwarder) Stream(id string, peerAddr kademlia.Address) {
 	key := nodeID.Bytes()
 
 	peers := self.hive.getPeers(key, 2)
-	var p peer
+	var p *peer
 
 	if len(peers) > 1 {
 		if peers[0].Addr() == peerAddr {

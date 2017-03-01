@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/swarm/network/kademlia"
 )
 
 /*
@@ -51,7 +52,7 @@ type CloudStore interface {
 	Store(*Chunk)
 	Deliver(*Chunk)
 	Retrieve(*Chunk)
-	Stream(string)
+	Stream(string, kademlia.Address)
 	Transcode(string, common.Hash, []string, []string, string, []string)
 	// TranscodeAck()
 }
