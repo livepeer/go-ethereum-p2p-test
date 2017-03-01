@@ -134,18 +134,15 @@ func (self *forwarder) Stream(id string, peerAddr kademlia.Address) {
 		} else {
 			p = peers[0]
 		}
+	} else if len(peers) == 1 {
+		p = peers[0]
+	} else {
+		fmt.Println("ERROR: Stream Request Sent To %d Peers\n", len(peers))
+		return
 	}
 
 	p.stream(msg)
 
-	/*	if len(peers) != 1 {
-			fmt.Println("ERROR: Stream Request Sent To %d Peers\n", len(peers))
-		}
-
-
-		for _, p := range peers {
-			p.stream(msg)
-		}*/
 }
 
 // Transcode request - this is to request for a node to become a transcoder.  The node should send an Ack to confirm.
