@@ -8,6 +8,11 @@
         body{
             padding-top: 55px;
         }
+
+        .control-label {
+            width:80px;
+            padding-right:20px;
+        }
     </style>
 </head>
 <body>
@@ -23,38 +28,50 @@
     </div>
 </div>
 <div class="container">
+
     <div class="alert alert-info fade in" id="txt_log">
         <button type="button" class="close" data-dismiss="alert">×</button>
         <strong><span id="txt_log_title">Usage:</span></strong>
         <span id="txt_log_msg">Configure your settings, press 'broadcast'</span>
     </div>
-    <div class="control-group">
-        <div class="form-inline">
-            <button class="btn" id="btn_video_settings">Video Settings</button>
-            <button class="btn" id="btn_audio_settings">Audio Settings</button>
+
+    <form class="form-horizontal">
+        <div class="form-group">
+            <label class="col-sm-2 control-label">Settings:</label>
+            <div class="col-sm-10">
+                <button class="btn" id="btn_video_settings">Video Settings</button>
+                <button class="btn" id="btn_audio_settings">Audio Settings</button>
+            </div>
         </div>
-    </div>
-    <div class="control-group">
-        <div class="form-inline">
-            URL:
-            <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
-            <button class="btn btn-primary" id="btn_broadcast">Broadcast</button>
-            <button class="btn btn-primary" id="btn_transcode">Disable Transcoding</button>
+        <div class="form-group">
+            <label class="col-sm-2 control-label">URL:</label>
+            <div class="col-sm-10">
+                <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
+                <button class="btn btn-primary" id="btn_stream">Stream</button>
+                <button class="btn btn-primary" id="btn_broadcast">Broadcast</button>
+            </div>
         </div>
-    </div>
-    <div class="control-group">
-        <div class="form-inline">
-            Stream ID:
-            <input type="text" id="txt_streamid" class="input-xxlarge" value=""></input>
+        <div class="form-group">
+            <label class="col-sm-2 control-label">RTMP Video ID:</label>
+            <div class="col-sm-10">
+                <input type="text" id="txt_streamid" class="input-xxlarge" value=""></input>
+            </div>
         </div>
-    </div>
-    <div class="control-group">
-        <div class="form-inline">
-            Player Port:
-            <input type="text" id="txt_player_port" class="input-xxlarge" value=""></input>
-            <button class="btn btn-primary" id="btn_launch_player">Launch Player</button>
+        <div class="form-group">
+            <label class="col-sm-2 control-label">HLS Video ID:</label>
+            <div class="col-sm-10">
+                <input type="text" id="txt_transcodedId" class="input-xxlarge" value=""></input>
+            </div>
         </div>
-    </div>
+        <div class="form-group">
+            <label class="col-sm-2 control-label">Player Port:</label>
+            <div class="col-sm-10">
+                <input type="text" id="txt_player_port" class="input-xxlarge" value=""></input>
+                <button class="btn btn-primary" id="btn_launch_player">Launch Player</button>
+            </div>
+        </div>
+    </form>
+
     <div id="video_modal" class="modal hide fade">
         <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
@@ -188,12 +205,12 @@
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">设置</button>
+            <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">setting</button>
         </div>
     </div>
     <div class="container">
-        <div class="row-fluid">
-            <div class="span10">
+        <div class="row-fluid" style="margin-left:180px">
+            <div class="span7">
                 <div class="accordion-group">
                     <div class="accordion-heading">
                         <span class="accordion-toggle">
@@ -241,7 +258,7 @@
         }
 
         $.getJSON('/streamEndpoint', function(jd) {
-            $("#txt_url").val(jd.url + "?transcode=true");
+            $("#txt_url").val(jd.url);
         }).fail(function(err) {
             console.log( "Failed to get stream endpoint ");
         });
@@ -252,19 +269,21 @@
             win.focus();
         });
 
-        $("#btn_transcode").click(function() {
-            if ($("#txt_url").val().indexOf("?transcode=true") > 0) {
-                url = $("#txt_url").val();
-                url = url.replace("?transcode=true", "");
-                $("#txt_url").val(url);
-                $("#btn_transcode").text("Enable Transcoding");
-            } else {
-                url = $("#txt_url").val();
-                url += "?transcode=true";
-                $("#txt_url").val(url);
-                $("#btn_transcode").text("Disable Transcoding");
-            }
-       });
+        // $("#btn_stream").click(function() {
+            //Start streaming
+
+            // if ($("#txt_url").val().indexOf("?transcode=true") > 0) {
+            //     url = $("#txt_url").val();
+            //     // url = url.replace("?transcode=true", "");
+            //     $("#txt_url").val(url);
+            //     $("#btn_stream").text("Enable Transcoding");
+            // } else {
+            //     url = $("#txt_url").val();
+            //     url += "?transcode=true";
+            //     $("#txt_url").val(url);
+            //     $("#btn_stream").text("Disable Transcoding");
+            // }
+    //    });
 
         $("#btn_video_settings").click(function(){
             $("#video_modal").modal({show:true});
@@ -286,13 +305,15 @@
             title: "Right-click for RTMP addr"
         });
 
-        $("#btn_broadcast").click(on_user_publish);
+        $("#btn_stream").click(on_user_publish);
+
+        $("#btn_broadcast").click(on_broadcast);
 
         // for publish, we use randome stream name.
         // $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
 
         // start the publisher.
-        srs_publisher = new SrsPublisher("local_publisher", 430, 285);
+        srs_publisher = new SrsPublisher("local_publisher", 480, 320);
         srs_publisher.on_publisher_ready = function(cameras, microphones) {
             srs_publisher_initialize_page(
                     cameras, microphones,
@@ -314,6 +335,31 @@
         srs_publisher.start();
     });
 
+    function on_broadcast() {
+        if ($("#txt_streamid").val() == "") {
+            error(0, "Need to start the stream first");
+        }
+
+        $.post("/broadcast?transcodeId=56416bce50a94cebd97e8703de204d2f4ed5b1c765d2e30fb707f10ad71c73b2", JSON.stringify({
+            "formats": ["HLS"],
+            bitrates: ["1000"],
+            codecout: ["H264"],
+            streamID: $("#txt_streamid").val(),
+        }), "json").done(function(data) {
+            setTimeout(function() {$.getJSON("/transcodedVideo?originStreamID=" + $("#txt_streamid").val(), function(data) {
+                console.log(data)
+                $("#txt_transcodedId").val(data[0].StreamID);
+                if (data.length > 0) {
+                    pull = false;
+                }
+            }).fail(function(err) {
+                console.log(err);
+            })}, 15000);
+        }).fail(function(err) {
+            console.log(err);
+        });
+    }
+
     function on_publish_stop() {
         if (!srs_can_republish()) {
             $("#btn_join").attr("disabled", true);
@@ -327,9 +373,10 @@
     }
 
     function on_user_publish() {
-        if ($("#btn_broadcast").text() == "Stop Broadcasting") {
+        if ($("#btn_stream").text() == "Stop Streaming") {
             srs_publisher.stop();
-            $("#btn_broadcast").text("Broadcast");
+            $("#btn_stream").text("Stream");
+            $("#txt_streamid").val("");
 
             if (!on_publish_stop()) {
                 return;
@@ -337,7 +384,7 @@
             return;
         }
 
-        $("#btn_broadcast").text("Stop Broadcasting");
+        $("#btn_stream").text("Stop Streaming");
 
         var url = $("#txt_url").val();
         var vcodec = {};

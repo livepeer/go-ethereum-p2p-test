@@ -21,6 +21,15 @@ import (
 type StreamID string
 type TranscodeID string
 
+func RandomStreamID() common.Hash {
+	rand.Seed(time.Now().UnixNano())
+	var x common.Hash
+	for i := 0; i < len(x); i++ {
+		x[i] = byte(rand.Uint32())
+	}
+	return x
+}
+
 func MakeStreamID(nodeID common.Hash, id string) StreamID {
 	return StreamID(fmt.Sprintf("%x%v", nodeID[:], id))
 }
@@ -111,7 +120,7 @@ func (self *Streamer) SubscribeToStream(id string) (stream *Stream, err error) {
 
 func (self *Streamer) AddNewStream() (stream *Stream, err error) {
 	//newID := // Generate random string for the stream
-	uid := randomStreamID()
+	uid := RandomStreamID()
 	streamID := MakeStreamID(self.SelfAddress, fmt.Sprintf("%x", uid))
 	glog.V(logger.Info).Infof("Adding new stream with ID: %v", streamID)
 	return self.saveStreamForId(streamID)
@@ -191,12 +200,3 @@ func ByteArrInVideoChunk(arr []byte) VideoChunk {
 // 	fmt.Println("chunk: ", chunk)
 // 	fmt.Println("newchunk: ", newChunk)
 // }
-
-func randomStreamID() common.Hash {
-	rand.Seed(time.Now().UnixNano())
-	var x common.Hash
-	for i := 0; i < len(x); i++ {
-		x[i] = byte(rand.Uint32())
-	}
-	return x
-}
