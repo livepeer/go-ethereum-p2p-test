@@ -273,7 +273,7 @@ func (self *bzz) handle() error {
 			if stream == nil {
 				// Don't have this stream yet. Subscribe and request it.
 				stream, _ = self.streamer.SubscribeToStream(string(concatedStreamID))
-				(*self.forwarder).Stream(string(concatedStreamID))
+				(*self.forwarder).Stream(string(concatedStreamID), self.remoteAddr.Addr)
 
 				// Log the relay
 				self.viz.LogRelay(string(concatedStreamID))
@@ -386,7 +386,7 @@ func (self *bzz) handle() error {
 					return self.protoError(ErrTranscode, "Error subscribing to stream %v", err)
 				}
 				//Send subscribe request
-				(*self.forwarder).Stream(string(originalStreamID))
+				(*self.forwarder).Stream(string(originalStreamID), self.remoteAddr.Addr)
 			}
 
 			transcodedStream, err := self.streamer.AddNewStream()

@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 
+	"github.com/ethereum/go-ethereum/swarm/network/kademlia"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 )
@@ -113,7 +114,7 @@ func (self *forwarder) Store(chunk *storage.Chunk) {
 }
 
 // Stream request - this is to request for a stream, not to do broadcast.  The chunks should arrive in protocol.go
-func (self *forwarder) Stream(id string) {
+func (self *forwarder) Stream(id string, peerAddr kademlia.Address) {
 	s := streaming.StreamID(id)
 	nodeID, streamID := s.SplitComponents()
 	msg := &streamRequestMsgData{
@@ -124,13 +125,24 @@ func (self *forwarder) Stream(id string) {
 
 	key := nodeID.Bytes()
 
-	peers := self.hive.getPeers(key, 1)
-	if len(peers) != 1 {
+	peers := self.hive.getPeers(key, 2)
+	var p *peer
+
+	if len(peers) > 1 {
+		if peers[0].Addr() == peerAddr {
+			p = peers[1]
+		} else {
+			p = peers[0]
+		}
+	} else if len(peers) == 1 {
+		p = peers[0]
+	} else {
 		fmt.Println("ERROR: Stream Request Sent To %d Peers\n", len(peers))
+		return
 	}
-	for _, p := range peers {
-		p.stream(msg)
-	}
+
+	p.stream(msg)
+
 }
 
 // Transcode request - this is to request for a node to become a transcoder.  The node should send an Ack to confirm.
