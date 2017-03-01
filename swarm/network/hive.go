@@ -265,6 +265,19 @@ func (self *Hive) getPeers(target storage.Key, max int) (peers []*peer) {
 	return
 }
 
+func (self *Hive) getPeersCloserThanSelf(target storage.Key, max int) (peers []*peer) {
+	var addr kademlia.Address
+	copy(addr[:], target[:])
+	for _, node := range self.kad.FindClosest(addr, max) {
+		// fmt.Println("Appending peer: ", node.Addr())
+		//Only insert if proximity of node is greater than proximity of self (proximity is larger when distance is smaller)
+		if proximity(common.Hash(node.Addr()), common.Hash(addr)) > proximity(common.Hash(self.Addr()), common.Hash(addr)) {
+			peers = append(peers, node.(*peer))
+		}
+	}
+	return
+}
+
 // disconnects all the peers
 func (self *Hive) DropAll() {
 	glog.V(logger.Info).Infof("dropping all bees")
@@ -387,4 +400,16 @@ func (self *Hive) peers(req *retrieveRequestMsgData) {
 
 func (self *Hive) String() string {
 	return self.kad.String()
+}
+
+func proximity(one, other common.Hash) (ret int) {
+	for i := 0; i < len(one); i++ {
+		oxo := one[i] ^ other[i]
+		for j := 0; j < 8; j++ {
+			if (uint8(oxo)>>uint8(7-j))&0x01 != 0 {
+				return i*8 + j
+			}
+		}
+	}
+	return len(one) * 8
 }

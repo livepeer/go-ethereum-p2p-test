@@ -35,15 +35,17 @@ BZZ protocol Message Types and Message Data Types
 
 // bzz protocol message codes
 const (
-	statusMsg          = iota // 0x01
-	storeRequestMsg           // 0x02
-	retrieveRequestMsg        // 0x03
-	peersMsg                  // 0x04
-	syncRequestMsg            // 0x05
-	deliveryRequestMsg        // 0x06
-	unsyncedKeysMsg           // 0x07
-	paymentMsg                // 0x08
-	streamRequestMsg          // 0x09
+	statusMsg           = iota // 0x01
+	storeRequestMsg            // 0x02
+	retrieveRequestMsg         // 0x03
+	peersMsg                   // 0x04
+	syncRequestMsg             // 0x05
+	deliveryRequestMsg         // 0x06
+	unsyncedKeysMsg            // 0x07
+	paymentMsg                 // 0x08
+	streamRequestMsg           // 0x09
+	transcodeRequestMsg        // 0x10
+	transcodeAckMsg            // 0x11
 )
 
 /*
@@ -82,6 +84,37 @@ type streamRequestMsgData struct {
 
 	requestTimeout *time.Time
 	from           *peer
+}
+
+/*
+ Transcode requests are sent to peers who can become trascoding nodes, and those nodes send back acks
+*/
+type transcodeRequestMsgData struct {
+	OriginNode     common.Hash
+	OriginStreamID string
+	TranscodeID    common.Hash
+	Id             uint64
+	from           *peer
+	Formats        []string
+	Bitrates       []string
+	CodecIn        string
+	CodecOut       []string
+}
+
+type transcodeAckMsgData struct {
+	OriginNode     common.Hash
+	OriginStreamID string
+	TranscodeID    common.Hash
+	from           *peer
+	NewStreamIDs   []transcodedStreamData
+}
+
+type transcodedStreamData struct {
+	StreamID string
+	Format   string
+	Bitrate  string
+	CodecIn  string
+	CodecOut string
 }
 
 /*

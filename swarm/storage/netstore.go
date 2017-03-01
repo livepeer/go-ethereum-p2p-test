@@ -21,9 +21,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	//"github.com/ethereum/go-ethereum/swarm/storage/streaming"
 )
 
 /*
@@ -52,6 +52,8 @@ type CloudStore interface {
 	Deliver(*Chunk)
 	Retrieve(*Chunk)
 	Stream(string)
+	Transcode(string, common.Hash, []string, []string, string, []string)
+	// TranscodeAck()
 }
 
 type StoreParams struct {

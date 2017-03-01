@@ -17,9 +17,11 @@
 package network
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 
@@ -118,14 +120,46 @@ func (self *forwarder) Stream(id string) {
 		OriginNode: nodeID,
 		StreamID:   streamID,
 		Id:         streaming.RequestStreamMsgID,
-		// VideoChunk: *chunk,
 	}
 
 	key := nodeID.Bytes()
 
 	peers := self.hive.getPeers(key, 1)
+	if len(peers) != 1 {
+		fmt.Println("ERROR: Stream Request Sent To %d Peers\n", len(peers))
+	}
 	for _, p := range peers {
 		p.stream(msg)
+	}
+}
+
+// Transcode request - this is to request for a node to become a transcoder.  The node should send an Ack to confirm.
+func (self *forwarder) Transcode(streamId string, transcodeId common.Hash, formats []string, bitrates []string, codecin string, codeout []string) {
+	fmt.Println("Forwarding Transcode Request")
+	s := streaming.StreamID(streamId)
+	nodeID, streamID := s.SplitComponents()
+	msg := &transcodeRequestMsgData{
+		OriginNode:     nodeID,
+		OriginStreamID: streamID,
+		TranscodeID:    transcodeId,
+		Id:             streaming.TranscodeRequestMsgID,
+		Formats:        formats,
+		Bitrates:       bitrates,
+		CodecIn:        codecin,
+		CodecOut:       codeout,
+	}
+
+	glog.V(logger.Info).Infof("In forwarding func, getting peer with transcodeId: %x", transcodeId)
+	//We always try to branch out at least 1 node, so that the requested node can NEVER be the transcoding node
+	peers := self.hive.getPeers(transcodeId.Bytes(), 1)
+	if len(peers) > 0 {
+		for _, p := range peers {
+			fmt.Println("Sending transcode req to peer: %v", p.Addr())
+			p.transcode(msg)
+		}
+	} else {
+		fmt.Errorf("Error: no peer found to forward Transcode request.")
+		return
 	}
 }
 
