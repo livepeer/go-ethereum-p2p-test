@@ -60,6 +60,7 @@ type Stream struct {
 	M3U8          []byte
 	lastDstSeq    int64
 	ID            StreamID
+	CloseChan     chan bool
 }
 
 func (self *Stream) PutToDstVideoChan(chunk *VideoChunk) {
@@ -131,16 +132,24 @@ func (self *Streamer) saveStreamForId(streamID StreamID) (stream *Stream, err er
 		return nil, errors.New("Stream with this ID already exists")
 	}
 
-	self.Streams[streamID] = &Stream{
+	stream = &Stream{
 		SrcVideoChan:  make(chan *VideoChunk, 10),
 		DstVideoChan:  make(chan *VideoChunk, 10),
 		M3U8Chan:      make(chan []byte),
 		HlsSegChan:    make(chan HlsSegment),
 		HlsSegNameMap: make(map[string][]byte),
+		CloseChan:     make(chan bool),
 		ID:            streamID,
 	}
+	self.Streams[streamID] = stream
+	go func() {
+		select {
+		case <-stream.CloseChan:
+			self.DeleteStream(stream.ID)
+		}
+	}()
 
-	return self.Streams[streamID], nil
+	return stream, nil
 }
 
 func (self *Streamer) GetStream(nodeID common.Hash, id string) (stream *Stream, err error) {
